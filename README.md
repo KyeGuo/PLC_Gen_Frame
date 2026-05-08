@@ -138,6 +138,31 @@ mkdir -p ../plc-workspace
 
 **注意**：配置文件中的路径是相对于 backend 目录的，因为服务是从 backend 目录启动的。
 
+### 验证 TwinCAT MCP 部署
+
+在启动服务之前，建议验证 TwinCAT Validator MCP 是否正确安装：
+
+```bash
+cd backend
+source .venv/bin/activate
+
+# 验证 MCP 命令
+.venv/bin/twincat-validator-mcp --help
+```
+
+**预期输出：**
+```
+Starting twincat-validator v1.0.0
+Supported file types: .TcPOU, .TcIO, .TcDUT, .TcGVL
+Validation checks: 45
+Auto-fix capabilities: 10
+Server ready to accept connections
+```
+
+如果看到错误信息，请检查：
+1. 是否已正确安装 twincat-validator-mcp
+2. Python 虚拟环境是否正确激活
+
 ### 配置 API Key
 
 在启动服务之前，您需要配置 LLM 模型的 API Key。框架支持多种模型提供商：
