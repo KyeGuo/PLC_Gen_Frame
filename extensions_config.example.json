@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "twincat-validator": {
+      "enabled": true,
+      "type": "stdio",
+      "command": ".venv/bin/python",
+      "args": [
+        "-m",
+        "twincat_validator"
+      ],
+      "env": {},
+      "description": "TwinCAT 3 PLC代码验证、自动修复和脚手架工具"
+    },
+    "filesystem": {
+      "enabled": true,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "../../plc-workspace"
+      ],
+      "env": {},
+      "description": "文件系统访问，用于读写PLC代码文件"
+    }
+  },
+  "skills": {}
+}
