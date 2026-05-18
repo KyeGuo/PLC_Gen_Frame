@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TC/PLC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="3.1.4024.35">
+  <POU Name="DocumentFilingSystem" Id="{A8F6B5E3-7D2A-4C9B-8F1E-6D7C4F3A2B1D}" Group="" Folder="" Comment="" Access="Public">
+    <Interface>
+      <DeclarationSection>
+        <Section Name="VAR_INPUT">
+          <Variable Name="DocumentInlet" Type="BOOL" Comment="文档入口传感器信号"/>
+          <Variable Name="CategorySelector" Type="INT" Comment="文档类别选择器 (1-4对应不同存储仓)"/>
+        </Section>
+        <Section Name="VAR_OUTPUT">
+          <Variable Name="ConveyorMotor" Type="BOOL" Comment="传送带电机控制信号"/>
+          <Variable Name="StorageBin1" Type="BOOL" Comment="存储仓1门控制信号"/>
+          <Variable Name="StorageBin2" Type="BOOL" Comment="存储仓2门控制信号"/>
+          <Variable Name="StorageBin3" Type="BOOL" Comment="存储仓3门控制信号"/>
+          <Variable Name="StorageBin4" Type="BOOL" Comment="存储仓4门控制信号"/>
+        </Section>
+        <Section Name="VAR">
+          <Variable Name="State" Type="INT" Comment="状态机变量: 0=待机, 1=传输中, 2=等待入仓, 3=入仓完成" InitialValue="0"/>
+          <Variable Name="CategoryValid" Type="BOOL" Comment="类别选择是否有效"/>
+          <Variable Name="TransferTimer" Type="TON" Comment="传输延时定时器"/>
+          <Variable Name="WaitTimer" Type="TON" Comment="等待入仓延时定时器"/>
+          <Variable Name="BinOpenTimer" Type="TON" Comment="存储仓打开延时定时器"/>
+        </Section>
+      </DeclarationSection>
+    </Interface>
+    <Implementation>
+      <ST>
+        // 文档归档系统主逻辑
+        // 状态机实现
+        CASE State OF
+          0: // 待机状态
+            // 复位所有输出和定时器
+            ConveyorMotor := FALSE;
+            StorageBin1 := FALSE;
+            StorageBin2 := FALSE;
+            StorageBin3 := FALSE;
+            StorageBin4 := FALSE;
+            TransferTimer.IN := FALSE;
+            WaitTimer.IN := FALSE;
+            BinOpenTimer.IN := FALSE;
+            
+            // 检查是否有文档进入且类别选择有效
+            CategoryValid := (CategorySelector >= 1) AND (CategorySelector <= 4);
+            IF DocumentInlet AND CategoryValid THEN
+              State := 1; // 进入传输状态
+              TransferTimer(IN := TRUE, PT := T#5S); // 初始化并启动传输定时器
+            END_IF
+            
+          1: // 传输状态
+            ConveyorMotor := TRUE;
+            
+            // 调用传输定时器
+            TransferTimer();
+            
+            // 检查传输是否完成
+            IF TransferTimer.Q THEN
+              State := 2; // 进入等待入仓状态
+              TransferTimer.IN := FALSE; // 复位传输定时器
+              WaitTimer(IN := TRUE, PT := T#2S); // 初始化并启动等待定时器
+            END_IF
+            
+          2: // 等待入仓状态
+            ConveyorMotor := TRUE;
+            
+            // 调用等待定时器
+            WaitTimer();
+            
+            // 检查是否到打开存储仓的时间
+            IF WaitTimer.Q THEN
+              // 复位所有存储仓输出，确保只有一个被激活
+              StorageBin1 := FALSE;
+              StorageBin2 := FALSE;
+              StorageBin3 := FALSE;
+              StorageBin4 := FALSE;
+              
+              // 根据类别选择打开对应的存储仓
+              CASE CategorySelector OF
+                1: StorageBin1 := TRUE;
+                2: StorageBin2 := TRUE;
+                3: StorageBin3 := TRUE;
+                4: StorageBin4 := TRUE;
+              END_CASE;
+              State := 3; // 进入入仓完成状态
+              WaitTimer.IN := FALSE; // 复位等待定时器
+              BinOpenTimer(IN := TRUE, PT := T#3S); // 初始化并启动存储仓打开定时器
+            END_IF
+            
+          3: // 入仓完成状态
+            // 调用存储仓打开定时器
+            BinOpenTimer();
+            
+            // 检查是否到关闭存储仓的时间
+            IF BinOpenTimer.Q THEN
+              // 关闭所有存储仓和传送带
+              ConveyorMotor := FALSE;
+              StorageBin1 := FALSE;
+              StorageBin2 := FALSE;
+              StorageBin3 := FALSE;
+              StorageBin4 := FALSE;
+              BinOpenTimer.IN := FALSE; // 复位存储仓打开定时器
+              State := 0; // 返回待机状态
+            END_IF
+            
+        ELSE
+          // 默认状态 - 错误处理
+          State := 0;
+        END_CASE;
+        
+        // 安全保护：确保任何时候只有一个存储仓被激活
+        CASE CategorySelector OF
+          1: 
+            StorageBin2 := FALSE;
+            StorageBin3 := FALSE;
+            StorageBin4 := FALSE;
+          2: 
+            StorageBin1 := FALSE;
+            StorageBin3 := FALSE;
+            StorageBin4 := FALSE;
+          3: 
+            StorageBin1 := FALSE;
+            StorageBin2 := FALSE;
+            StorageBin4 := FALSE;
+          4: 
+            StorageBin1 := FALSE;
+            StorageBin2 := FALSE;
+            StorageBin3 := FALSE;
+          ELSE
+            StorageBin1 := FALSE;
+            StorageBin2 := FALSE;
+            StorageBin3 := FALSE;
+            StorageBin4 := FALSE;
+        END_CASE;
+      </ST>
+    </Implementation>
+  </TcPlcObject>

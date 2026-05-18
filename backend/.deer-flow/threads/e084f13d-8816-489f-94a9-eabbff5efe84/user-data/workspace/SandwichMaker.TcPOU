@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://infosys.beckhoff.com/TCPlcSchema/2022/07/15">
+  <POU Name="SandwichMaker" Type="FunctionBlock" Id="{B9F5E6A0-1B2C-4D3E-8F9A-0B1C2D3E4F56}">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK SandwichMaker
+VAR_INPUT
+    BreadFeeder : BOOL; (* Input: Detects the presence of bread slices *)
+    Ingredient1 : BOOL; (* Input: Detects the presence of Ingredient 1 (e.g., cheese) *)
+    Ingredient2 : BOOL; (* Input: Detects the presence of Ingredient 2 (e.g., lettuce) *)
+    Ingredient3 : BOOL; (* Input: Detects the presence of Ingredient 3 (e.g., tomatoes) *)
+    Condiment1 : BOOL; (* Input: Detects the presence of Condiment 1 (e.g., mayo) *)
+    Condiment2 : BOOL; (* Input: Detects the presence of Condiment 2 (e.g., mustard) *)
+END_VAR
+VAR_OUTPUT
+    ConveyorMotor : BOOL; (* Output: Controls the conveyor belt motor *)
+    AssembleMotor : BOOL; (* Output: Controls the sandwich assembly motor *)
+    CurrentSliceCount : INT := 0; (* Output: Current bread slice count *)
+END_VAR
+VAR
+    SliceCount : INT := 0; (* Counter for bread slices *)
+    bPrevBreadDetect : BOOL := FALSE; (* Previous state of bread detection input *)
+END_VAR
+    ]]></Declaration>
+    <Implementation Language="ST"><![CDATA[
+METHOD Execute
+VAR
+END_VAR
+    // 面包检测与计数逻辑 - 上升沿检测
+    IF BreadFeeder AND NOT bPrevBreadDetect THEN
+        SliceCount := SliceCount + 1; // 检测到新面包时增加计数
+    END_IF
+    
+    // 更新面包检测输入的前一状态
+    bPrevBreadDetect := BreadFeeder;
+    
+    // 传送带控制 - 有面包时启动
+    ConveyorMotor := BreadFeeder;
+    
+    // 组装电机控制逻辑
+    // 条件1: 所有配料和调料都已准备好
+    // 条件2: 至少有2片面包
+    AssembleMotor := (Ingredient1 AND Ingredient2 AND Ingredient3 AND Condiment1 AND Condiment2) AND (SliceCount >= 2);
+    
+    // 更新输出计数变量
+    CurrentSliceCount := SliceCount;
+END_METHOD
+    ]]></Implementation>
+  </POU>
+</TcPlcObject>

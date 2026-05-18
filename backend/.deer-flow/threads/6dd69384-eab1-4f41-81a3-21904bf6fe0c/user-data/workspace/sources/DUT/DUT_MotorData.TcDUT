@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<DataType xmlns="http://infosys.beckhoff.com/TC3/DataType" Name="DUT_MotorData" Category="Struct" Version="1.0.0.0">
+  <Description>电机数据结构体</Description>
+  <StructDeclaration>
+    <Member Name="nTargetSpeed" Type="DINT" Description="目标转速 (0-3000 RPM)"/>
+    <Member Name="nActualSpeed" Type="DINT" Description="实际转速反馈 (0-3000 RPM)"/>
+    <Member Name="fActualCurrent" Type="REAL" Description="实际电流反馈 (0-100 A)"/>
+    <Member Name="eMotorState" Type="E_MotorState" Description="电机当前状态"/>
+    <Member Name="eErrorCode" Type="E_ErrorCode" Description="错误代码"/>
+    <Member Name="bStartCommand" Type="BOOL" Description="启动命令 (上升沿触发)"/>
+    <Member Name="bStopCommand" Type="BOOL" Description="停止命令 (上升沿触发)"/>
+    <Member Name="bResetCommand" Type="BOOL" Description="故障复位命令 (上升沿触发)"/>
+    <Member Name="bOverloadActive" Type="BOOL" Description="过载保护激活状态"/>
+  </StructDeclaration>
+  <Attributes>
+    <Attribute Name="TcVersion" Value="3.1.4024.17"/>
+    <Attribute Name="Guid" Value="{B2C3D4E5-6789-01FA-2345-67890ABCDEF0}"/>
+  </Attributes>
+</DataType>

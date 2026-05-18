@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="DUT_MotorParameters" Id="{12345678-1234-5678-1234-567812345678}">
+    <Declaration><![CDATA[TYPE DUT_MotorParameters : STRUCT
+  fSpeedSetpoint : REAL; (* 速度给定 (0.0-100.0%) *)
+  fCurrentLimit : REAL; (* 电流上限 (A) *)
+  nStartupDelay : INT; (* 启动延时 (ms) *)
+  nStopDelay : INT; (* 停止延时 (ms) *)
+  nOverloadDelay : INT; (* 过载保护延时 (ms) *)
+  fOverloadHysteresis : REAL; (* 过载保护回差 (%) *)
+END_STRUCT
+END_TYPE
+(*
+电机参数结构说明:
+- fSpeedSetpoint: 电机速度给定值，范围0.0到100.0%
+- fCurrentLimit: 电机最大允许电流，单位安培
+- nStartupDelay: 电机启动延时，防止频繁启停
+- nStopDelay: 电机停止延时，平滑停车
+- nOverloadDelay: 过载保护延时，避免瞬时电流误判
+- fOverloadHysteresis: 过载保护回差，防止频繁触发
+*)
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

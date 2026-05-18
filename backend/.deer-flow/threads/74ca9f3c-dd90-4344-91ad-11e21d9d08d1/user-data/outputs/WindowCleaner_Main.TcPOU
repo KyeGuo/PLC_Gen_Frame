@@ -1,0 +1,69 @@
+PROGRAM WindowCleaner_Main
+VAR_INPUT
+    // 硬件输入映射
+    StartButton: BOOL AT %I*;          // 启动按钮输入点
+    EmergencyStop: BOOL AT %I*;        // 紧急停止按钮输入点
+    UpperLimit: BOOL AT %I*;           // 上限行程开关输入点
+    LowerLimit: BOOL AT %I*;           // 下限行程开关输入点
+END_VAR
+
+VAR_OUTPUT
+    // 硬件输出映射
+    ElevatorUp: BOOL AT %Q*;           // 电梯上升输出点
+    ElevatorDown: BOOL AT %Q*;         // 电梯下降输出点
+    RotateClockwise: BOOL AT %Q*;      // 清洁刷顺时针旋转输出点
+    WaterPump: BOOL AT %Q*;            // 水泵输出点
+END_VAR
+
+VAR
+    // 功能块实例 - 修复：与实际定义的功能块名称匹配
+    WindowCleaner: FB_WindowCleaningSystem;   // 窗户清洁系统主功能块
+    
+    // 故障处理
+    FaultDetected: BOOL;               // 故障检测标志
+    EmergencyStopEdge: F_TRIG;         // 紧急停止下降沿检测
+END_VAR
+
+// 紧急停止事件记录
+EmergencyStopEdge(CLK := EmergencyStop);
+IF EmergencyStopEdge.Q THEN
+    // 记录紧急停止事件
+    GVL_WindowCleaner.LastEmergencyStopTime := TOD_TO_DT(TOD_NOW());
+    GVL_WindowCleaner.FaultCode := GVL_WindowCleaner.FAULT_CODE_EMERGENCY_STOP;
+END_IF;
+
+// 调用主功能块
+WindowCleaner(
+    StartButton := StartButton,
+    EmergencyStop := EmergencyStop,
+    UpperLimit := UpperLimit,
+    LowerLimit := LowerLimit,
+    ElevatorUp => ElevatorUp,
+    ElevatorDown => ElevatorDown,
+    RotateClockwise => RotateClockwise,
+    WaterPump => WaterPump
+);
+
+// 更新全局系统状态
+GVL_WindowCleaner.SystemState := WindowCleaner.CurrentState;
+
+// 故障检测与处理 - 修复：故障检测逻辑错误
+FaultDetected := EmergencyStop OR 
+                (UpperLimit AND LowerLimit);  // 上下限同时触发视为故障
+
+IF FaultDetected THEN
+    IF EmergencyStop THEN
+        GVL_WindowCleaner.FaultCode := GVL_WindowCleaner.FAULT_CODE_EMERGENCY_STOP;
+    ELSE
+        GVL_WindowCleaner.FaultCode := GVL_WindowCleaner.FAULT_CODE_LIMIT_ERROR;
+    END_IF;
+    GVL_WindowCleaner.LastFaultTime := TOD_TO_DT(TOD_NOW());
+ELSE
+    // 无故障时重置故障代码
+    GVL_WindowCleaner.FaultCode := GVL_WindowCleaner.FAULT_CODE_NO_ERROR;
+END_IF;
+
+// 运行次数计数 - 修复：使用正确的状态枚举
+IF WindowCleaner.CurrentState = STATE_COMPLETE THEN
+    GVL_WindowCleaner.RuntimeCounter := GVL_WindowCleaner.RuntimeCounter + 1;
+END_IF;

@@ -1,0 +1,66 @@
+PROGRAM Main
+VAR_GLOBAL
+    // 功能块实例
+    BookSorting : FB_BookSorting;
+    
+    // 统计计数器
+    LastRFIDStatus : INT := 0; // 上一周期的RFID状态
+    BookDetected : BOOL := FALSE; // 书籍检测标志
+END_VAR
+
+// ================================
+// 主程序逻辑
+// ================================
+
+// 1. 调用书籍分拣功能块
+BookSorting(
+    RFID1 := GVL.RFID1,
+    RFID2 := GVL.RFID2,
+    RFID3 := GVL.RFID3,
+    Motor => GVL.Motor,
+    Bin1 => GVL.Bin1,
+    Bin2 => GVL.Bin2,
+    Bin3 => GVL.Bin3
+);
+
+// 2. 统计分拣数量
+BookDetected := (GVL.RFID1 OR GVL.RFID2 OR GVL.RFID3);
+
+// 当书籍检测状态从无到有时，统计分拣数量
+IF BookDetected AND (LastRFIDStatus = 0) THEN
+    GVL.BooksSortedTotal := GVL.BooksSortedTotal + 1;
+    
+    IF GVL.RFID1 THEN
+        GVL.BooksBin1 := GVL.BooksBin1 + 1;
+    ELSIF GVL.RFID2 THEN
+        GVL.BooksBin2 := GVL.BooksBin2 + 1;
+    ELSIF GVL.RFID3 THEN
+        GVL.BooksBin3 := GVL.BooksBin3 + 1;
+    END_IF
+END_IF
+
+// 更新上一周期的RFID状态
+LastRFIDStatus := 0;
+IF GVL.RFID1 THEN
+    LastRFIDStatus := 1;
+ELSIF GVL.RFID2 THEN
+    LastRFIDStatus := 2;
+ELSIF GVL.RFID3 THEN
+    LastRFIDStatus := 3;
+END_IF
+
+// 3. 系统状态监控
+GVL.SystemRunning := BookDetected;
+GVL.ErrorStatus := FALSE; // 可扩展故障检测逻辑
+
+// ================================
+// 安全逻辑：紧急停止处理
+// ================================
+// IF EmergencyStop THEN
+//     GVL.Motor := FALSE;
+//     GVL.Bin1 := FALSE;
+//     GVL.Bin2 := FALSE;
+//     GVL.Bin3 := FALSE;
+//     GVL.ErrorStatus := TRUE;
+// END_IF
+END_PROGRAM

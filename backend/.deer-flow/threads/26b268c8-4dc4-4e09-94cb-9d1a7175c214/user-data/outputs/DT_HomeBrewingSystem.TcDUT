@@ -1,0 +1,19 @@
+TYPE ST_BrewingParameters:
+STRUCT
+    TemperatureSetpoint: REAL := 65.0;    // 酿造温度设定
+    FlowThreshold: REAL := 0.5;           // 流量阈值设定
+    HopsDelay: TIME := T#5H;              // 啤酒花投放延迟
+    FermentationDelay: TIME := T#48H;     // 发酵启动延迟
+    BrewingDuration: TIME := T#48H;       // 总酿造时长
+END_STRUCT
+END_TYPE
+
+TYPE ET_SystemState:
+(
+    Standby,          // 待机状态
+    Brewing,          // 酿造中
+    Fermenting,       // 发酵中
+    Completed,        // 完成
+    Fault             // 故障
+);
+END_TYPE

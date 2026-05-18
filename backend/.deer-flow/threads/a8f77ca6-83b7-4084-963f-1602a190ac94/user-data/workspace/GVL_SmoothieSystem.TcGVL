@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="4.2.0.19">
+  <TcPOU>
+    <Interface>
+      <IOs>
+        <GvlComment>自动Smoothie机控制系统全局变量列表</GvlComment>
+        <GvlComment>
+          ================== 输入变量 ==================
+        </GvlComment>
+        <Variable Name="BananaAvailable" Datatype="BOOL" Address="I0.0" Comment="香蕉原料是否可用（True=可用，False=不可用）" />
+        <Variable Name="BerryMixAvailable" Datatype="BOOL" Address="I0.1" Comment="混合莓原料是否可用（True=可用，False=不可用）" />
+        <Variable Name="SpinachAvailable" Datatype="BOOL" Address="I0.2" Comment="菠菜原料是否可用（True=可用，False=不可用）" />
+        <Variable Name="YogurtAvailable" Datatype="BOOL" Address="I0.3" Comment="酸奶原料是否可用（True=可用，False=不可用）" />
+        <Variable Name="CustomerPreference" Datatype="INT" Address="IW2" Comment="用户选择的食谱（1=食谱1，2=食谱2，3=食谱3）" />
+        
+        <GvlComment>
+          ================== 输出变量 ==================
+        </GvlComment>
+        <Variable Name="BlenderMotor" Datatype="BOOL" Address="Q0.0" Comment="搅拌电机控制（True=启动，False=停止）" />
+        <Variable Name="Dispenser" Datatype="BOOL" Address="Q0.1" Comment="分配器控制（True=激活，False=关闭）" />
+        
+        <GvlComment>
+          ================== 系统状态变量 ==================
+        </GvlComment>
+        <Variable Name="SystemStatus" Datatype="STRING[50]" Comment="系统状态信息" />
+        <Variable Name="MissingIngredients" Datatype="STRING[100]" Comment="显示缺少的原料" />
+      </IOs>
+    </Interface>
+  </TcPOU>
+</TcPlcObject>

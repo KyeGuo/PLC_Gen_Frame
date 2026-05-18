@@ -1,0 +1,24 @@
+TYPE DUT_MotorData :
+STRUCT
+    // 状态信息
+    MotorState : E_MotorState;           // 当前电机状态
+    ErrorCode : E_ErrorCode;             // 当前错误代码
+    IsFaultActive : BOOL;                // 是否有故障激活
+    
+    // 控制参数
+    TargetSpeed : LREAL;                 // 目标速度 (0-100%)
+    CurrentSpeed : LREAL;                // 当前速度 (0-100%)
+    RampTime : TIME;                    // 斜坡时间 (0-30s)
+    
+    // 实时数据
+    CurrentCurrent : LREAL;              // 当前电流 (A)
+    CurrentTemperature : LREAL;          // 当前温度 (°C)
+    Voltage : LREAL;                     // 电压 (V)
+    
+    // 诊断信息
+    TotalRunTime : TIME;                 // 总运行时间
+    StartCount : UDINT;                  // 启动次数
+    LastFaultTime : DT;                  // 最后一次故障时间
+    LastFaultCode : E_ErrorCode;         // 最后一次故障代码
+END_STRUCT
+END_TYPE

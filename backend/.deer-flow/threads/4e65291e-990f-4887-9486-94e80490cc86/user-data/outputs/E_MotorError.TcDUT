@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_MotorError" Id="{a1b2c3d4-5678-90ef-1234-56789abcdef0}">
+    <Declaration><![CDATA[TYPE E_MotorError :
+(
+  NO_ERROR := 0,
+  OVERLOAD_WARNING := 1,
+  OVERLOAD_FAULT := 2,
+  SPEED_OUT_OF_RANGE := 3,
+  START_FAILURE := 4
+) DINT;
+END_TYPE
+(*
+错误码说明:
+- NO_ERROR: 无错误
+- OVERLOAD_WARNING: 过载警告（电流接近阈值）
+- OVERLOAD_FAULT: 过载故障（电流超过阈值并延时）
+- SPEED_OUT_OF_RANGE: 速度给定超出范围
+- START_FAILURE: 启动失败
+*)
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

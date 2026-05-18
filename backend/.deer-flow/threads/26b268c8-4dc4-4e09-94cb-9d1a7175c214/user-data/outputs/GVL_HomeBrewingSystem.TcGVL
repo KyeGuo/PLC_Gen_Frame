@@ -1,0 +1,27 @@
+VAR_GLOBAL
+    // 系统状态
+    g_SystemState: ET_SystemState := ET_SystemState.Standby;  // 系统运行状态
+    
+    // 传感器数据
+    g_Temperature: REAL := 0.0;       // 温度传感器数据
+    g_WaterFlow: REAL := 0.0;         // 水流传感器数据
+    
+    // 时间参数
+    g_BrewingStartTime: TIME := T#0S; // 酿造开始时间
+    g_BrewingDuration: TIME := T#48H; // 酿造总时长
+    
+    // 设备状态
+    g_HeatingElement: BOOL := FALSE;  // 加热元件状态
+    g_AgitationMotor: BOOL := FALSE;  // 搅拌电机状态
+    g_HopsDispenser: BOOL := FALSE;   // 啤酒花投放器状态
+    g_FermentationTank: BOOL := FALSE;// 发酵罐状态
+    
+    // 报警信息
+    g_AlarmTemperatureHigh: BOOL := FALSE;  // 温度过高报警
+    g_AlarmTemperatureLow: BOOL := FALSE;   // 温度过低报警
+    g_AlarmFlowError: BOOL := FALSE;        // 流量异常报警
+    g_AlarmTimeError: BOOL := FALSE;        // 时间同步错误
+    
+    // 酿造参数
+    g_BrewingParams: ST_BrewingParameters;  // 酿造工艺参数
+END_VAR

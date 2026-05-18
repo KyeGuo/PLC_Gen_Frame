@@ -1,0 +1,40 @@
+FUNCTION_BLOCK FB_OverloadProtection
+VAR_INPUT
+    MotorCurrent : REAL;
+    OverloadThreshold : REAL := 10.0;
+    OverloadDelay : TIME := T#2000MS;
+    HysteresisCoeff : REAL := 0.9;  (* 迟滞系数，避免频繁触发 *)
+END_VAR
+VAR_OUTPUT
+    OverloadDetected : BOOL;
+    FaultCode : E_ErrorCode;
+END_VAR
+VAR
+    OverloadTimer : TON;
+    ResetFlag : BOOL := FALSE;
+END_VAR
+
+(* 过载检测定时器逻辑 *)
+OverloadTimer(IN := (MotorCurrent > OverloadThreshold), PT := OverloadDelay);
+
+(* 过载检测与迟滞处理 *)
+IF OverloadTimer.Q THEN
+    OverloadDetected := TRUE;
+    FaultCode := E_ErrorCode#OVERLOAD;
+    ResetFlag := TRUE;
+END_IF;
+
+(* 故障复位：电流低于阈值的90%时自动复位 *)
+IF ResetFlag AND (MotorCurrent < OverloadThreshold * HysteresisCoeff) THEN
+    OverloadDetected := FALSE;
+    FaultCode := E_ErrorCode#NO_ERROR;
+    ResetFlag := FALSE;
+    OverloadTimer(IN := FALSE);  (* 复位定时器 *)
+END_IF;
+
+(* 初始状态 *)
+IF NOT OverloadTimer.IN AND NOT ResetFlag THEN
+    OverloadDetected := FALSE;
+    FaultCode := E_ErrorCode#NO_ERROR;
+END_IF;
+END_FUNCTION_BLOCK

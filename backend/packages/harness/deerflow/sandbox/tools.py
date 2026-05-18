@@ -1232,6 +1232,16 @@ def read_file_tool(
             elif not _is_custom_mount_path(path):
                 path = _resolve_and_validate_user_data_path(path, thread_data)
             # Custom mount paths are resolved by LocalSandbox._resolve_path()
+            
+            # Try to find file in thread-specific directory if not found in original path
+            thread_id = thread_data.get("thread_id")
+            if thread_id:
+                path_obj = Path(path)
+                if "workspace" in str(path_obj.parent) and not str(path_obj.parent).endswith(f"thread_{thread_id}"):
+                    thread_path = path_obj.parent / f"thread_{thread_id}" / path_obj.name
+                    if thread_path.exists():
+                        path = str(thread_path)
+                        
         content = sandbox.read_file(path)
         if not content:
             return "(empty)"
@@ -1282,6 +1292,18 @@ def write_file_tool(
             if not _is_custom_mount_path(path):
                 path = _resolve_and_validate_user_data_path(path, thread_data)
             # Custom mount paths are resolved by LocalSandbox._resolve_path()
+            
+            # Build thread-aware path - organize files by thread ID
+            thread_id = thread_data.get("thread_id")
+            if thread_id:
+                path_obj = Path(path)
+                # Only add thread directory for workspace files
+                if "workspace" in str(path_obj.parent):
+                    thread_dir = path_obj.parent / f"thread_{thread_id}"
+                    # Create thread directory if it doesn't exist
+                    thread_dir.mkdir(parents=True, exist_ok=True)
+                    path = str(thread_dir / path_obj.name)
+                    
         with get_file_operation_lock(sandbox, path):
             sandbox.write_file(path, content, append)
         return "OK"

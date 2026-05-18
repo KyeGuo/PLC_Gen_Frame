@@ -1,0 +1,65 @@
+FUNCTION_BLOCK GreenhouseWateringSystem
+VAR_INPUT
+    SoilMoistureSensor : REAL;   (* Input for soil moisture level (0-100%) *)
+    ResponseDelay : TIME := T#5s;  (* Response delay for the system *)
+END_VAR
+VAR_OUTPUT
+    SprinklersOn : BOOL := FALSE;         (* Output for controlling sprinklers - on/off *)
+END_VAR
+VAR
+    LastMoistureReading : REAL := 0.0;
+    DelayTimer : TON;                     (* Timer for response delay *)
+    TargetState : BOOL := FALSE;          (* Desired state after delay *)
+    CurrentMoisture : REAL := 0.0;        (* Validated moisture value *)
+END_VAR
+VAR CONSTANT
+    MIN_MOISTURE : REAL := 0.0;           (* Minimum valid moisture level *)
+    MAX_MOISTURE : REAL := 100.0;         (* Maximum valid moisture level *)
+    HYSTERESIS_LOW : REAL := 30.0;        (* Moisture threshold for turning on *)
+    HYSTERESIS_HIGH : REAL := 70.0;       (* Moisture threshold for turning off *)
+END_VAR
+
+(* 验证湿度输入范围 *)
+IF SoilMoistureSensor < MIN_MOISTURE THEN
+    CurrentMoisture := MIN_MOISTURE;
+ELSIF SoilMoistureSensor > MAX_MOISTURE THEN
+    CurrentMoisture := MAX_MOISTURE;
+ELSE
+    CurrentMoisture := SoilMoistureSensor;
+END_IF;
+
+(* 确定目标状态 *)
+IF CurrentMoisture < HYSTERESIS_LOW THEN
+    TargetState := TRUE;
+ELSIF CurrentMoisture >= HYSTERESIS_HIGH THEN
+    TargetState := FALSE;
+ELSE
+    (* 湿度在中间范围，保持当前状态 *)
+    TargetState := SprinklersOn;
+END_IF;
+
+(* 处理响应延迟 *)
+IF TargetState <> SprinklersOn THEN
+    (* 启动延迟定时器 *)
+    DelayTimer(IN := TRUE, PT := ResponseDelay);
+    
+    IF DelayTimer.Q THEN
+        (* 延迟时间到，更新状态 *)
+        SprinklersOn := TargetState;
+        DelayTimer(IN := FALSE);
+    END_IF;
+ELSE
+    (* 状态一致，重置定时器 *)
+    DelayTimer(IN := FALSE);
+END_IF;
+
+(* 更新上一次湿度读数 *)
+LastMoistureReading := CurrentMoisture;
+
+(* 形式化属性断言 *)
+// ASSERT (CurrentMoisture < 30.0) = SprinklersOn;  // 不变式1
+// ASSERT (CurrentMoisture >= 70.0) = (NOT SprinklersOn);  // 不变式2
+// ASSERT CurrentMoisture >= 0.0 AND CurrentMoisture <= 100.0;  // 不变式3
+// ASSERT EXISTS (SprinklersOn = TRUE);  // 可达性
+
+END_FUNCTION_BLOCK

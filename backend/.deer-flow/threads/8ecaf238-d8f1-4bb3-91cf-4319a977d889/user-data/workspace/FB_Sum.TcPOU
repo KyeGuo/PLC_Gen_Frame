@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.26">
+  <POU Name="FB_Sum" Id="" Special="0" FeatureFlags="0" Access="Public" Type="FunctionBlock" AbsoluteAddress="">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Sum
+VAR_INPUT
+    maxValue : INT; // 输入的最大值
+END_VAR
+VAR_OUTPUT
+    wData : WORD; // 存储计算结果的输出变量
+END_VAR
+VAR
+    nTempSum : DWORD; // 临时存储计算结果
+    i : INT; // FOR循环计数器
+END_VAR]]></Declaration>
+    <Implementation><![CDATA[
+METHOD FB_Init : BOOL
+VAR_INPUT
+    bInitRetains : BOOL; // if TRUE, the retain variables are initialized (warm start / cold start)
+    bInCopyCode : BOOL;  // if TRUE, the instance afterwards gets moved into copy code (online change)
+END_VAR
+VAR
+END_VAR
+    FB_Init := TRUE;
+END_METHOD
+
+METHOD Update : BOOL
+VAR
+END_VAR
+    // 计算从0到maxValue的整数和
+    nTempSum := 0; // 重置临时变量
+    
+    IF maxValue >= 0 THEN
+        // 使用FOR循环实现累加计算
+        FOR i := 0 TO maxValue DO
+            nTempSum := nTempSum + DWORD_TO_DWORD(i);
+        END_FOR
+        
+        // 确保结果不超过WORD的最大值65535
+        IF nTempSum > 65535 THEN
+            wData := 65535;
+        ELSE
+            wData := DWORD_TO_WORD(nTempSum);
+        END_IF
+    ELSE
+        // 当maxValue为负数时，结果为0
+        wData := 0;
+    END_IF
+    
+    Update := TRUE;
+END_METHOD
+
+]]></Implementation>
+    <Attributes>
+      <POUAttributeList>
+        <POUAttribute Name="TcOpenness.Formatter" Version="1.0.0.0">
+          <FormatterSettings>
+            <TabSize>2</TabSize>
+            <IndentSize>2</IndentSize>
+            <ConvertTabsToSpaces>True</ConvertTabsToSpaces>
+            <OpenBraceAtEol>False</OpenBraceAtEol>
+          </FormatterSettings>
+        </POUAttribute>
+      </POUAttributeList>
+    </Attributes>
+    <Units>
+      <Unit Name="">
+      </Unit>
+    </Units>
+  </POU>
+  <Dependencies />
+  <Platforms>
+    <Platform Name="TcXaeShell" Version="3.1.4024.26" />
+  </Platforms>
+</TcPlcObject>

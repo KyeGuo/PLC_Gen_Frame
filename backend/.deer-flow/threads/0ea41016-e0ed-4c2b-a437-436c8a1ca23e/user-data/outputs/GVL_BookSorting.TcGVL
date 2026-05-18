@@ -1,0 +1,16 @@
+GVL_BookSorting
+VAR_GLOBAL
+    // 输入变量
+    RFID1 : BOOL COMMENT := "RFID1传感器输入，检测书籍是否到达分拣位置1";
+    RFID2 : BOOL COMMENT := "RFID2传感器输入，检测书籍是否到达分拣位置2";
+    RFID3 : BOOL COMMENT := "RFID3传感器输入，检测书籍是否到达分拣位置3";
+    
+    // 输出变量
+    Motor : BOOL COMMENT := "分拣电机输出信号，TRUE表示启动电机";
+    Bin1 : BOOL COMMENT := "分拣箱1输出信号，TRUE表示打开分拣箱1";
+    Bin2 : BOOL COMMENT := "分拣箱2输出信号，TRUE表示打开分拣箱2";
+    Bin3 : BOOL COMMENT := "分拣箱3输出信号，TRUE表示打开分拣箱3";
+    
+    // 功能块实例
+    BookSortingInstance : FB_BookSorting COMMENT := "书籍分拣功能块实例";
+END_VAR

@@ -86,7 +86,7 @@ export function ArtifactFileDetail({
   const { content } = useArtifactContent({
     threadId,
     filepath: filepathFromProps,
-    enabled: isCodeFile && !isWriteFile,
+    enabled: isCodeFile,
   });
 
   const displayContent = content ?? "";

@@ -1,0 +1,68 @@
+FUNCTION_BLOCK FB_RequestHandler
+VAR_IN
+    request : BOOL; // 请求信号：当为TRUE时触发请求处理
+    done : BOOL; // 完成信号：当为TRUE时表示请求处理完成
+END_VAR_IN
+VAR_OUT
+    listen : BOOL; // 监听模式指示：TRUE表示系统处于监听请求状态
+END_VAR_OUT
+VAR
+    // 状态枚举：使用语义化名称替代整数，提高代码可读性
+    eState : ERequestHandlerState := ERequestHandlerState.Listening;
+END_VAR
+
+// 状态机逻辑实现
+CASE eState OF
+    ERequestHandlerState.Listening: // 监听状态
+        // 在监听状态下，始终保持listen为TRUE
+        listen := TRUE;
+        
+        // 检测到请求信号时，切换到处理状态
+        IF request THEN
+            listen := FALSE; // 进入处理状态后停止监听
+            eState := ERequestHandlerState.Processing; // 切换到处理状态
+            done := FALSE; // 重置完成信号，确保处理流程可以正确启动
+        END_IF;
+    
+    ERequestHandlerState.Processing: // 处理状态
+        // 在处理状态下，始终保持listen为FALSE
+        listen := FALSE;
+        
+        // 检测到完成信号时，切换回监听状态
+        IF done THEN
+            listen := TRUE; // 回到监听状态重新开始监听
+            eState := ERequestHandlerState.Listening; // 切换回监听状态
+        END_IF;
+    
+    ELSE: // 异常状态处理：任何未知状态都重置为监听状态
+        listen := TRUE;
+        eState := ERequestHandlerState.Listening;
+END_CASE;
+
+// 形式化属性验证断言：确保代码符合所有要求的形式化属性
+
+// 属性1: 当系统处于监听状态且request为FALSE时，listen必须为TRUE
+ASSERT((eState = ERequestHandlerState.Listening) AND NOT request) IMPLIES listen;
+
+// 属性2: 当系统处于监听状态且request为TRUE且done为FALSE时，
+// 必须切换到处理状态且listen为FALSE
+ASSERT((eState = ERequestHandlerState.Listening) AND request AND NOT done) 
+    IMPLIES (NOT listen AND eState = ERequestHandlerState.Processing);
+
+// 属性3: 当系统处于处理状态且done为FALSE时，必须保持在处理状态
+ASSERT((eState = ERequestHandlerState.Processing) AND NOT done) 
+    IMPLIES (eState = ERequestHandlerState.Processing);
+
+// 属性4: 当系统处于处理状态且done为TRUE时，
+// 必须切换回监听状态且listen为TRUE
+ASSERT((eState = ERequestHandlerState.Processing) AND done) 
+    IMPLIES (listen AND eState = ERequestHandlerState.Listening);
+END_FUNCTION_BLOCK
+
+// 状态枚举类型定义：用于替代整数状态，提高代码可读性和可维护性
+TYPE ERequestHandlerState :
+( 
+    Listening := 0, // 监听状态：等待请求信号
+    Processing := 1 // 处理状态：正在处理请求
+);
+END_TYPE

@@ -1,0 +1,47 @@
+FUNCTION_BLOCK FB_EVChargingControl
+VAR_INPUT
+    EVConnected: BOOL; // 电动汽车连接状态
+    EVVoltage: DWORD; // 电动汽车电压(mV)
+    EVCurrent: DWORD; // 电动汽车电流(mA)
+    EVStateOfCharge: WORD; // 电动汽车剩余电量(0.01%)
+    ChargingTimer: TIME; // 充电累计时间
+END_VAR
+VAR_OUTPUT
+    EVCharging: BOOL; // 充电使能输出
+END_VAR
+VAR
+    VoltageOk: BOOL; // 电压条件满足状态
+    CurrentOk: BOOL; // 电流条件满足状态
+    SocNotFull: BOOL; // 未充满电状态
+    TimerOk: BOOL; // 充电时间未超时状态
+END_VAR
+
+// 条件状态计算 - 单位转换修正
+VoltageOk := EVVoltage > 350000; // 350.0V -> 350000mV
+CurrentOk := EVCurrent <= 32000; // 32.0A -> 32000mA
+SocNotFull := EVStateOfCharge < 10000; // 100.0% -> 10000 (0.01%单位)
+TimerOk := ChargingTimer <= T#2h;
+
+// 充电控制逻辑 - 移除冗余的IF语句
+EVCharging := EVConnected AND VoltageOk AND CurrentOk AND SocNotFull AND TimerOk;
+
+// 形式化断言检查
+// 断言1: 未连接时禁止充电
+ASSERT NOT EVCharging WHEN NOT EVConnected;
+
+// 断言2: 电压不满足时禁止充电
+ASSERT NOT EVCharging WHEN NOT VoltageOk;
+
+// 断言3: 电流超限禁止充电
+ASSERT NOT EVCharging WHEN NOT CurrentOk;
+
+// 断言4: 电池充满时禁止充电
+ASSERT NOT EVCharging WHEN NOT SocNotFull;
+
+// 断言5: 充电超时禁止充电
+ASSERT NOT EVCharging WHEN NOT TimerOk;
+
+// 断言6: 所有条件满足时必须充电
+ASSERT EVCharging WHEN EVConnected AND VoltageOk AND CurrentOk AND SocNotFull AND TimerOk;
+
+END_FUNCTION_BLOCK

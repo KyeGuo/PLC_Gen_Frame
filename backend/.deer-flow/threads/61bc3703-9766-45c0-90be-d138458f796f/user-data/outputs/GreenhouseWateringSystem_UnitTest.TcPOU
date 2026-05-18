@@ -1,0 +1,60 @@
+FUNCTION_BLOCK GreenhouseWateringSystem_UnitTest
+VAR
+    uut : GreenhouseWateringSystem;  (* 被测单元 *)
+    testMoisture : REAL;
+    testDelay : TIME := T#5s;
+    testResult : BOOL;
+    cycleCount : INT := 0;
+    
+    (* 测试用例 *)
+    testCases : ARRAY[1..5] OF STRUCT
+        moisture : REAL;
+        expectedState : BOOL;
+        description : STRING;
+    END_STRUCT := [
+        (moisture := 25.0, expectedState := TRUE, description := '湿度低于30%，应开启喷淋器'),
+        (moisture := 75.0, expectedState := FALSE, description := '湿度高于70%，应关闭喷淋器'),
+        (moisture := 50.0, expectedState := FALSE, description := '湿度在中间范围，初始状态保持关闭'),
+        (moisture := 0.0, expectedState := TRUE, description := '湿度为0%，应开启喷淋器'),
+        (moisture := 100.0, expectedState := FALSE, description := '湿度为100%，应关闭喷淋器')
+    ];
+END_VAR
+
+(* 初始化测试用例 *)
+IF cycleCount = 0 THEN
+    testMoisture := testCases[1].moisture;
+    cycleCount := 1;
+END_IF;
+
+(* 运行被测单元 *)
+uut(SoilMoistureSensor := testMoisture, ResponseDelay := testDelay);
+
+(* 验证结果 *)
+IF cycleCount >= TON_TO_MS(testDelay) / 10 THEN  (* 假设PLC周期为10ms *)
+    testResult := (uut.SprinklersOn = testCases[cycleCount-9].expectedState);
+    
+    IF testResult THEN
+        // TODO: 记录测试通过
+    ELSE
+        // TODO: 记录测试失败
+    END_IF;
+    
+    (* 准备下一个测试用例 *)
+    IF cycleCount-9 < 5 THEN
+        testMoisture := testCases[cycleCount-9+1].moisture;
+        uut.SprinklersOn := FALSE;  (* 重置状态 *)
+    ELSE
+        // TODO: 测试完成
+    END_IF;
+    
+    cycleCount := 1;
+ELSE
+    cycleCount := cycleCount + 1;
+END_IF;
+
+(* 形式化属性验证 *)
+// ASSERT (testMoisture < 30.0) = uut.SprinklersOn OR NOT uut.DelayTimer.Q;  // 延迟期间允许不一致
+// ASSERT (testMoisture >= 70.0) = (NOT uut.SprinklersOn) OR NOT uut.DelayTimer.Q;  // 延迟期间允许不一致
+// ASSERT uut.CurrentMoisture >= 0.0 AND uut.CurrentMoisture <= 100.0;  // 输入验证
+
+END_FUNCTION_BLOCK

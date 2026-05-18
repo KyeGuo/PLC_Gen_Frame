@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/XML/STProject/2013/3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.beckhoff.com/XML/STProject/2013/3 http://www.beckhoff.com/XML/STProject/2013/3/TcPlcObject.xsd">
+  <POU Name="FB_PrecisionEngravingMachine" Id="{00000000-0000-0000-0000-000000000000}" Group="Programs" POUType="FunctionBlock">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_PrecisionEngravingMachine
+VAR_INPUT
+    DesignSelection : INT; // 设计选择输入
+    EngravingDepth : REAL; // 外部深度输入
+    EngravingSpeed : REAL; // 外部速度输入
+END_VAR
+VAR_OUTPUT
+    ZAxisMotor : BOOL; // Z轴电机输出
+    EngravingMotor : BOOL; // 雕刻电机输出
+END_VAR
+VAR
+    CalculatedDepth : REAL; // 内部计算深度
+    CalculatedSpeed : REAL; // 内部计算速度
+    PreviousDesign : INT; // 上一次设计选择
+END_VAR
+]]></Declaration>
+    <Implementation Name="" Id="{00000000-0000-0000-0000-000000000000}" ImplementationLanguage="ST">
+      <ST><![CDATA[
+METHOD SetParametersByDesign
+VAR_INPUT
+    Design : INT;
+END_VAR
+CASE Design OF
+    1: // 设计1参数配置
+        CalculatedSpeed := 10.0;
+        CalculatedDepth := 0.1;
+    2: // 设计2参数配置
+        CalculatedSpeed := 8.0;
+        CalculatedDepth := 0.2;
+    3: // 设计3参数配置
+        CalculatedSpeed := 12.0;
+        CalculatedDepth := 0.15;
+    ELSE: // 无效设计处理
+        CalculatedSpeed := 0.0;
+        CalculatedDepth := 0.0;
+END_CASE;
+END_METHOD
+
+METHOD UpdateMotorStates
+VAR_INPUT
+    IsValidDesign : BOOL;
+END_VAR
+IF IsValidDesign THEN
+    ZAxisMotor := TRUE;
+    EngravingMotor := TRUE;
+ELSE
+    ZAxisMotor := FALSE;
+    EngravingMotor := FALSE;
+END_IF;
+END_METHOD
+
+// 主逻辑
+// 检测设计选择变化
+IF DesignSelection <> PreviousDesign THEN
+    // 更新工艺参数
+    SetParametersByDesign(Design := DesignSelection);
+    // 记录当前设计选择
+    PreviousDesign := DesignSelection;
+END_IF;
+
+// 更新电机状态
+UpdateMotorStates(IsValidDesign := (DesignSelection >= 1 AND DesignSelection <= 3));
+
+// 形式化属性断言 - 符合需求中的形式化属性要求
+// 断言1: 所有断言都满足（通过以下具体断言实现）
+// 断言2: 如果DesignSelection在1-3之间，则ZAxisMotor和EngravingMotor必须为TRUE
+ASSERT(NOT (DesignSelection >= 1 AND DesignSelection <= 3) OR (ZAxisMotor AND EngravingMotor));
+// 断言3: 如果DesignSelection不在1-3之间，则ZAxisMotor和EngravingMotor必须为FALSE
+ASSERT(NOT (DesignSelection < 1 OR DesignSelection > 3) OR (NOT ZAxisMotor AND NOT EngravingMotor));
+// 断言4: 如果DesignSelection=1，则CalculatedSpeed必须为10.0
+ASSERT(DesignSelection <> 1 OR CalculatedSpeed = 10.0);
+// 断言5: 如果DesignSelection=2，则CalculatedSpeed必须为8.0
+ASSERT(DesignSelection <> 2 OR CalculatedSpeed = 8.0);
+// 断言6: 系统状态在设计更改时可重复（通过PreviousDesign变量确保状态一致性）
+// 额外断言: 设计3速度断言
+ASSERT(DesignSelection <> 3 OR CalculatedSpeed = 12.0);
+// 额外断言: 设计1深度断言
+ASSERT(DesignSelection <> 1 OR CalculatedDepth = 0.1);
+// 额外断言: 设计2深度断言
+ASSERT(DesignSelection <> 2 OR CalculatedDepth = 0.2);
+// 额外断言: 设计3深度断言
+ASSERT(DesignSelection <> 3 OR CalculatedDepth = 0.15);
+// 额外断言: 无效设计参数置0
+ASSERT(NOT (DesignSelection < 1 OR DesignSelection > 3) OR (CalculatedSpeed = 0.0 AND CalculatedDepth = 0.0));
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

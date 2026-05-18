@@ -1,0 +1,84 @@
+FUNCTION_BLOCK ChargingStationControl
+{attribute 'TcGenVersion' := '3.1.4024.28'}
+{attribute 'Copyright' := 'Copyright © 2024'}
+{attribute 'Version' := '1.0.0.0'}
+{attribute 'Description' := '电动汽车充电站控制功能块 - 管理充电启停逻辑'}
+{attribute 'TcBuildLevel' := 'Build 4024.28'}
+{attribute 'EngineeringUnits' := 'Standard'}
+{attribute 'TargetVersion' := '3.1.4024'}
+{attribute 'Style' := 'TwinCAT'}
+VAR_INPUT
+    EVConnected : BOOL; // 电动汽车是否已连接
+    EVVoltage : REAL; // 电动汽车电池电压
+    EVCurrent : REAL; // 当前充电电流
+    EVStateOfCharge : REAL; // 电池剩余电量百分比
+    ChargingTimer : TIME; // 充电持续时间计时器
+    
+    // 预定义常量
+    MinimumVoltage : REAL := 200.0; // 允许充电的最小电压阈值
+    MaximumCurrent : REAL := 50.0; // 允许充电的最大电流阈值
+    MinimumSOC : REAL := 0.0; // 允许充电的最小SOC值
+    ChargingVoltage : REAL := 400.0; // 目标充电电压
+    ChargingCurrent : REAL := 30.0; // 目标充电电流
+    MaximumChargingTime : TIME := T#8H; // 最大允许充电时间
+END_VAR
+VAR_OUTPUT
+    EVCharging : BOOL; // 充电控制输出，TRUE表示充电中
+END_VAR
+VAR
+    // 内部变量
+    StartConditionsMet : BOOL; // 所有启动条件是否满足
+    StopConditionActive : BOOL; // 是否有停止条件激活
+END_VAR
+
+// 充电控制逻辑
+StartConditionsMet := EVConnected AND 
+                      (EVVoltage > MinimumVoltage) AND 
+                      (EVCurrent <= MaximumCurrent) AND 
+                      (EVStateOfCharge < 100.0) AND 
+                      (ChargingTimer <= MaximumChargingTime);
+
+StopConditionActive := NOT EVConnected OR 
+                       (EVVoltage <= MinimumVoltage) OR 
+                       (EVCurrent > MaximumCurrent) OR 
+                       (EVStateOfCharge >= 100.0) OR 
+                       (ChargingTimer > MaximumChargingTime);
+
+// 充电启停控制
+IF StartConditionsMet AND NOT StopConditionActive THEN
+    EVCharging := TRUE;
+ELSE
+    EVCharging := FALSE;
+END_IF
+
+// 形式化验证断言
+// 断言1: 当所有启动条件满足时，EVCharging必须为TRUE
+ASSERT(StartConditionsMet IMPLIES EVCharging);
+
+// 断言2: 当充电时间超时时，EVCharging必须为FALSE
+ASSERT((ChargingTimer > MaximumChargingTime) IMPLIES NOT EVCharging);
+
+// 断言3: 当EV断开连接时，EVCharging必须为FALSE
+ASSERT(NOT EVConnected IMPLIES NOT EVCharging);
+
+// 断言4: 当电压低于最小值时，EVCharging必须为FALSE
+ASSERT((EVVoltage <= MinimumVoltage) IMPLIES NOT EVCharging);
+
+// 断言5: 当电流超过最大值时，EVCharging必须为FALSE
+ASSERT((EVCurrent > MaximumCurrent) IMPLIES NOT EVCharging);
+
+// 断言6: 当电池充满时，EVCharging必须为FALSE
+ASSERT((EVStateOfCharge >= 100.0) IMPLIES NOT EVCharging);
+
+// 断言7: 所有停止条件都必须停止充电
+ASSERT(StopConditionActive IMPLIES NOT EVCharging);
+
+// 断言8: 充电状态只能由TRUE变为FALSE或保持FALSE
+ASSERT(SQ(EVCharging) OR SQ(NOT EVCharging));
+
+// 断言9: 当充电状态为TRUE时，所有启动条件必须满足
+ASSERT(EVCharging IMPLIES StartConditionsMet);
+
+// 断言10: 当充电状态为FALSE时，至少有一个停止条件激活或启动条件不满足
+ASSERT(NOT EVCharging IMPLIES (StopConditionActive OR NOT StartConditionsMet));
+END_FUNCTION_BLOCK

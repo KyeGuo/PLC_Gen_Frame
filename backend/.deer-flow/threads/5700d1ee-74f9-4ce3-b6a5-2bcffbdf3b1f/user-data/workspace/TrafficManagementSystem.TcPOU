@@ -1,0 +1,45 @@
+FUNCTION_BLOCK TrafficManagementSystem
+VAR_INPUT
+    VehicleCount1 : INT;
+    VehicleCount2 : INT;
+    VehicleCount3 : INT;
+    VehicleCount4 : INT;
+END_VAR
+
+VAR_OUTPUT
+    TrafficLight1 : BOOL;
+    TrafficLight2 : BOOL;
+    TrafficLight3 : BOOL;
+    TrafficLight4 : BOOL;
+END_VAR
+
+VAR
+    // 内部变量
+    Light1Green : BOOL;
+    Light3Green : BOOL;
+END_VAR
+
+// 第一对交叉路口逻辑 (1 vs 2)
+Light1Green := VehicleCount1 > VehicleCount2;
+TrafficLight1 := Light1Green;
+TrafficLight2 := NOT Light1Green;
+
+// 第二对交叉路口逻辑 (3 vs 4)
+Light3Green := VehicleCount3 > VehicleCount4;
+TrafficLight3 := Light3Green;
+TrafficLight4 := NOT Light3Green;
+
+// 形式化属性验证断言
+// 验证TrafficLight1和TrafficLight2始终处于相反状态
+ASSERT(TrafficLight1 <> TrafficLight2, 'TrafficLight1和TrafficLight2状态不互补');
+
+// 验证TrafficLight3和TrafficLight4始终处于相反状态
+ASSERT(TrafficLight3 <> TrafficLight4, 'TrafficLight3和TrafficLight4状态不互补');
+
+// 验证车辆数量多的路口绿灯亮
+ASSERT(Light1Green = TrafficLight1, 'VehicleCount1>VehicleCount2时TrafficLight1应为绿灯');
+ASSERT(NOT Light1Green = TrafficLight2, 'VehicleCount2>=VehicleCount1时TrafficLight2应为绿灯');
+ASSERT(Light3Green = TrafficLight3, 'VehicleCount3>VehicleCount4时TrafficLight3应为绿灯');
+ASSERT(NOT Light3Green = TrafficLight4, 'VehicleCount4>=VehicleCount3时TrafficLight4应为绿灯');
+
+END_FUNCTION_BLOCK

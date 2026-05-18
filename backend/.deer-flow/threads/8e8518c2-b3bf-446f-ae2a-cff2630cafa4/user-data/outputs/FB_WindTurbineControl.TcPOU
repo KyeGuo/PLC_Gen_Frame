@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TC/PLC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.beckhoff.com/TC/PLC PlcObject.xsd">
+  <POU Name="FB_WindTurbineControl" Id="{00000000-0000-0000-0000-000000000000}" Type="FUNCTION_BLOCK" Version="1.0.0.0" Company="Beckhoff Automation" Author="PLC Engineer" Contact="" Comment="风力涡轮机控制系统功能块 - 根据风速自动调整叶片桨距和发电机转速">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_WindTurbineControl
+VAR_INPUT
+    WindSpeedSensor: REAL; // 风速传感器输入，单位m/s
+    GeneratorSpeedSensor: REAL; // 发电机转速传感器输入，单位RPM
+END_VAR
+VAR_OUTPUT
+    BladePitch: INT; // 叶片桨距输出，单位度
+    GeneratorSpeed: REAL; // 发电机转速设定值，单位RPM
+END_VAR
+VAR
+    WindSpeedCategory: INT; // 风速类别: 0-低风速, 1-中等风速, 2-高风速
+END_VAR
+    ]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 风速类别判断
+IF WindSpeedSensor <= 3.0 THEN
+    WindSpeedCategory := 0; // 低风速
+ELSIF WindSpeedSensor > 3.0 AND WindSpeedSensor <= 5.0 THEN
+    WindSpeedCategory := 1; // 中等风速
+ELSE
+    WindSpeedCategory := 2; // 高风速
+END_IF;
+
+// 根据风速类别设置输出
+CASE WindSpeedCategory OF
+    0: // 低风速
+        BladePitch := -5;
+        GeneratorSpeed := 500.0;
+    1: // 中等风速
+        BladePitch := 0;
+        GeneratorSpeed := 800.0;
+    2: // 高风速
+        BladePitch := 5;
+        GeneratorSpeed := 1000.0;
+END_CASE;
+      ]]></ST>
+    </Implementation>
+    <Interface Name="" Comment="" />
+
+    <Attributes>
+      <Attribute Name="TcPlc.DiagnosticCategory" Value="1" />
+      <Attribute Name="TcPlc.ProcessImageUsage" Value="ReadWrite" />
+      <Attribute Name="TcPlc.Reentrancy" Value="NonReentrant" />
+    </Attributes>
+  </POU>
+</TcPlcObject>

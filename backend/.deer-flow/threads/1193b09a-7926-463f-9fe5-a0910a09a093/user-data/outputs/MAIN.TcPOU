@@ -1,0 +1,29 @@
+<TcPlcObject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="MAIN" Version="1.0.0.1" ProductVersion="3.1.4024.17">
+  <POU Type="Program">
+    <Interface>
+      <GVL>
+        <POUVar Name="g_KOMPASS_GRAD" DataType="INT" />
+        <POUVar Name="g_KURS" DataType="INT" />
+        <POUVar Name="g_KURS_DIFF" DataType="INT" />
+        <POUVar Name="g_ErrorFlag" DataType="BOOL" />
+        <POUVar Name="g_ErrorCode" DataType="INT" />
+      </GVL>
+    </Interface>
+    <Implementation>
+      <ST>
+VAR
+    fbCourseControl : FB_CourseDifferenceControl;
+END_VAR
+
+// 调用航向差控制功能块
+fbCourseControl(
+    KOMPASS_GRAD := g_KOMPASS_GRAD,
+    KURS := g_KURS,
+    KURS_DIFF := g_KURS_DIFF,
+    ErrorFlag := g_ErrorFlag,
+    ErrorCode := g_ErrorCode
+);
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

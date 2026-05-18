@@ -1,0 +1,13 @@
+GVL_TrafficLight
+VAR_GLOBAL
+    // 行人交通灯功能块实例
+    fbPedestrianTrafficLight : FB_PedestrianTrafficLight;
+    
+    // 输入变量
+    xPedBtnPress : BOOL := FALSE;  // 行人按钮输入
+    
+    // 输出变量
+    xCarLightGreen : BOOL;  // 汽车绿灯输出
+    xPedLightGreen : BOOL;  // 行人绿灯输出
+    nTimeCounter : INT;     // 时间计数器输出
+END_VAR

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TCPlcXmlSchema">
+  <POU Name="RockClimbingWallControl" Id="{A8E6F2D4-5B7C-4E9A-8F3A-1B2C3D4E5F67}">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK RockClimbingWallControl
+VAR_INPUT
+    UserWeightSensor : REAL; (* Input for measuring the user's weight in kg *)
+    InitialWallDifficultyLevel : INT; (* Input for setting the wall's initial difficulty level (1-3) *)
+    WallHeight : REAL; (* Input for setting the wall's height in meters *)
+    RouteSelector : INT; (* Input for selecting a climbing route (1-3) *)
+END_VAR
+VAR_OUTPUT
+    ClimbingMotorSpeed : REAL; (* Output for controlling the climbing wall motor speed (0.8 or 1.0) *)
+    WallLights : BOOL; (* Output for controlling wall lighting (TRUE when height > 5.0m) *)
+    WallDifficultyLevel : INT; (* Output for current wall difficulty level (1-3) *)
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+(* 电机速度调整逻辑：根据用户体重设置电机速度 *)
+IF UserWeightSensor > 60.0 THEN
+    ClimbingMotorSpeed := 1.0;
+ELSE
+    ClimbingMotorSpeed := 0.8;
+END_IF;
+
+(* 难度等级控制：根据路线选择自动设置难度等级 *)
+CASE RouteSelector OF
+    1: WallDifficultyLevel := 1;
+    2: WallDifficultyLevel := 2;
+    3: WallDifficultyLevel := 3;
+    (* 默认情况保持原有难度等级 *)
+    ELSE: WallDifficultyLevel := InitialWallDifficultyLevel; // 保持初始难度等级
+END_CASE;
+
+(* 墙灯控制逻辑：根据墙高控制灯光 *)
+WallLights := WallHeight > 5.0;
+
+(* 形式化属性验证断言 *)
+// 断言1：用户体重大于60kg时，电机速度必须等于1.0
+ASSERT UserWeightSensor > 60.0 IMPLIES ClimbingMotorSpeed = 1.0
+    MESSAGE 'UserWeightSensor > 60.0 but ClimbingMotorSpeed is not 1.0 (Current: ' + STRING(ClimbingMotorSpeed) + ')';
+
+// 断言2：路线1对应难度等级1
+ASSERT RouteSelector = 1 IMPLIES WallDifficultyLevel = 1
+    MESSAGE 'RouteSelector = 1 but WallDifficultyLevel is not 1 (Current: ' + STRING(WallDifficultyLevel) + ')';
+
+// 断言3：路线2对应难度等级2
+ASSERT RouteSelector = 2 IMPLIES WallDifficultyLevel = 2
+    MESSAGE 'RouteSelector = 2 but WallDifficultyLevel is not 2 (Current: ' + STRING(WallDifficultyLevel) + ')';
+
+// 断言4：路线3对应难度等级3
+ASSERT RouteSelector = 3 IMPLIES WallDifficultyLevel = 3
+    MESSAGE 'RouteSelector = 3 but WallDifficultyLevel is not 3 (Current: ' + STRING(WallDifficultyLevel) + ')';
+
+// 断言5：墙高大于5.0米时，墙灯必须激活
+ASSERT WallHeight > 5.0 IMPLIES WallLights = TRUE
+    MESSAGE 'WallHeight > 5.0 but WallLights is not TRUE (Current: ' + STRING(WallLights) + ')';
+
+// 断言6：难度等级必须在有效范围内
+ASSERT WallDifficultyLevel >= 1 AND WallDifficultyLevel <= 3
+    MESSAGE 'WallDifficultyLevel is out of valid range (1-3): ' + STRING(WallDifficultyLevel);
+]]></ST>
+    </Implementation>
+    <AttributeList>
+      <Group Name="Attributes">
+        <Attribute Name="Comment" DataType="WSTRING" Value="Rock climbing wall control function block - manages motor speed, lighting, and difficulty level based on user input" />
+        <Attribute Name="Documentation" DataType="WSTRING" Value="This function block controls an automated rock climbing wall system. It adjusts motor speed based on user weight, controls wall lighting based on height, and sets difficulty level based on selected route." />
+      </Group>
+    </AttributeList>
+  </POU>
+</TcPlcObject>

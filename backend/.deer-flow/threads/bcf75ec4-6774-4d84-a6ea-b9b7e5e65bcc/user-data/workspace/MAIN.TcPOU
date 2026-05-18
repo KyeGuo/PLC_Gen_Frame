@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="MAIN" Type="POU" ID="{00000000-0000-0000-0000-000000000000}" Version="1.0.0.0" Company="" Author="" Contact="" Comment="行人交通灯主程序">
+  <Declaration><Text><![CDATA[PROGRAM MAIN
+VAR
+    // 主程序变量
+END_VAR]]></Text></Declaration>
+  <Graph Name="" ID="{00000000-0000-0000-0000-000000000000}" UseFB="false" UseSFC="false" UseST="true" UseIL="false" UseFBD="false" UseLD="false" UseFC="false" IsPOU="true">
+    <ST Name="" ID="{00000000-0000-0000-0000-000000000000}">
+      <Text><![CDATA[// 行人交通灯控制系统主程序
+// 连接输入变量
+GVL_TrafficLight.fbPedestrianTrafficLight.pedBtnPress := GVL_TrafficLight.xPedBtnPress;
+
+// 调用功能块周期方法
+GVL_TrafficLight.fbPedestrianTrafficLight.Cycle();
+
+// 读取输出变量
+GVL_TrafficLight.xCarLightGreen := GVL_TrafficLight.fbPedestrianTrafficLight.carLightIsGreen;
+GVL_TrafficLight.xPedLightGreen := GVL_TrafficLight.fbPedestrianTrafficLight.pedLightIsGreen;
+GVL_TrafficLight.nTimeCounter := GVL_TrafficLight.fbPedestrianTrafficLight.TimeCounter;]]></Text>
+    </ST>
+  </Graph>
+</POU>

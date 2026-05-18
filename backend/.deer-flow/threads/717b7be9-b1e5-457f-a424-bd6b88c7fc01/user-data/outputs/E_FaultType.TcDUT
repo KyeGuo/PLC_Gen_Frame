@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_FaultType" Id="{550e8400-e29b-41d4-a716-446655440004}" Type="ENUM">
+    <Declaration><![CDATA[TYPE
+  E_FaultType : (
+    NO_FAULT := 0, // 无故障
+    OVERCURRENT := 1, // 过流故障
+    OVERTEMPERATURE := 2, // 过热故障
+    OVERLOAD := 3, // 过载故障
+    SHORT_CIRCUIT := 4, // 短路故障
+    UNDER_VOLTAGE := 5, // 欠压故障
+    OVER_VOLTAGE := 6 // 过压故障
+  );
+END_TYPE]]></Declaration>
+    <LineIds Name="E_FaultType">
+      <LineId Id="1" Count="0" />
+    </LineIds>
+  </DUT>
+</TcPlcObject>

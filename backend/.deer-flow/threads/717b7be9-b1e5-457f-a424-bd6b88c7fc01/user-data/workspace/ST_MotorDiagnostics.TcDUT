@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_MotorDiagnostics" Id="{550e8400-e29b-41d4-a716-446655440005}" Type="STRUCT">
+    <Declaration><![CDATA[TYPE
+  ST_MotorDiagnostics : STRUCT
+  tTotalRunTime : TIME; // 总运行时间
+  tLastStartTime : TIME; // 最后启动时间
+  nStartCount : UINT; // 启动次数
+  nCurrentFaultCode : UINT; // 当前故障代码
+  eCurrentFaultType : E_FaultType; // 当前故障类型
+  arrFaultHistory : ARRAY[0..9] OF ST_FaultRecord; // 故障历史记录(最多10条)
+  nFaultHistoryCount : UINT; // 故障历史记录数量
+  fCurrentSpeed : REAL; // 当前速度百分比(0-100%)
+  fCurrentCurrent : REAL; // 当前电流值
+  fCurrentTemperature : REAL; // 当前温度值
+END_STRUCT;
+END_TYPE]]></Declaration>
+    <LineIds Name="ST_MotorDiagnostics">
+      <LineId Id="1" Count="0" />
+    </LineIds>
+  </DUT>
+</TcPlcObject>

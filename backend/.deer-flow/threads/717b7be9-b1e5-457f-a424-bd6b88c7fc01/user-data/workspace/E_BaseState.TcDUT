@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_BaseState" Id="{550e8400-e29b-41d4-a716-446655440008}" Type="ENUM">
+    <Declaration><![CDATA[TYPE
+  E_BaseState : (
+    STOPPED := 0, // 停止状态
+    RUNNING := 1, // 运行状态
+    FAULT := 2, // 故障状态
+    INITIALIZING := 3 // 初始化状态
+  );
+END_TYPE]]></Declaration>
+    <LineIds Name="E_BaseState">
+      <LineId Id="1" Count="0" />
+    </LineIds>
+  </DUT>
+</TcPlcObject>

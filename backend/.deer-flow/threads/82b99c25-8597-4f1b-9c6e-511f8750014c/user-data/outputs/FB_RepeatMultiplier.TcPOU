@@ -1,0 +1,37 @@
+FUNCTION_BLOCK FB_RepeatMultiplier
+VAR_INPUT
+    INPUT_VAR1: INT := 2;       // 初始值为2
+    INPUT_COUNTER: INT := 4;    // 初始值为4
+END_VAR
+VAR_OUTPUT
+    OUTPUT_VAR1: INT;           // 乘法结果输出
+END_VAR
+VAR
+    tempCounter: INT;           // 临时计数器变量
+END_VAR
+VAR_METHOD
+    METHOD Execute: BOOL;       // 执行乘法运算的方法
+END_VAR
+
+METHOD Execute: BOOL
+    // 初始化输出变量为输入初始值
+    OUTPUT_VAR1 := INPUT_VAR1;
+    
+    // 初始化临时计数器
+    tempCounter := INPUT_COUNTER;
+    
+    // 使用REPEAT循环执行乘法操作
+    REPEAT
+        // 执行乘以2的操作
+        OUTPUT_VAR1 := OUTPUT_VAR1 * 2;
+        
+        // 递减临时计数器
+        tempCounter := tempCounter - 1;
+        
+    // 循环条件：临时计数器大于0时继续循环
+    UNTIL tempCounter = 0
+    END_REPEAT;
+    
+    // 返回执行成功状态
+    Execute := TRUE;
+END_METHOD

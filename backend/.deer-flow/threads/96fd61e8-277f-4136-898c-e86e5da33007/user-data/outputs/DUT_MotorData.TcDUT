@@ -1,0 +1,9 @@
+TYPE DUT_MotorData :
+STRUCT
+    CurrentSpeed : REAL;
+    TargetSpeed : REAL;
+    MotorCurrent : REAL;
+    State : E_MotorState;
+    ErrorCode : E_ErrorCode;
+END_STRUCT
+END_TYPE

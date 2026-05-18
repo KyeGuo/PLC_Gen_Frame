@@ -1,0 +1,24 @@
+FUNCTION_BLOCK FB_TemperatureControl
+VAR_INPUT
+    ActualTemperature: REAL;          // 当前温度
+    SetpointTemperature: REAL := 65.0;// 设定温度(默认65°C)
+END_VAR
+VAR_OUTPUT
+    HeatingElement: BOOL;             // 加热元件控制输出
+END_VAR
+VAR
+    v_TemperatureValid: BOOL;         // 温度有效性标志
+END_VAR
+
+// 检查温度输入有效性（是否为NaN）
+v_TemperatureValid := NOT(ActualTemperature <> ActualTemperature);
+
+// 温度控制逻辑：低于设定温度时激活加热元件
+// 边界条件：等于设定温度时关闭加热
+IF v_TemperatureValid THEN
+    HeatingElement := (ActualTemperature < SetpointTemperature);
+ELSE
+    // 输入无效时关闭加热元件，进入安全状态
+    HeatingElement := FALSE;
+END_IF
+END_FUNCTION_BLOCK

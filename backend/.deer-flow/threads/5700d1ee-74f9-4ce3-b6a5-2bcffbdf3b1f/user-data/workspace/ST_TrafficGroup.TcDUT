@@ -1,0 +1,15 @@
+TYPE ST_TrafficGroup :
+STRUCT
+    // 输入数据
+    VehicleCountA : INT;      // A路口车辆数量
+    VehicleCountB : INT;      // B路口车辆数量
+    
+    // 输出数据
+    TrafficLightA : BOOL;     // A路口交通灯状态 (TRUE=绿灯, FALSE=红灯)
+    TrafficLightB : BOOL;     // B路口交通灯状态 (TRUE=绿灯, FALSE=红灯)
+    
+    // 内部状态
+    LastGreen : BOOL;         // 上一次绿灯状态，用于状态变化检测
+    ChangeCount : INT;        // 状态变化计数，用于统计
+END_STRUCT
+END_TYPE

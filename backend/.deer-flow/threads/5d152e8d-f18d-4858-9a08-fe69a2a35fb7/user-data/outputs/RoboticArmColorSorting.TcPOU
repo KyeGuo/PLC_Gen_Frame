@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TC/PLC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.beckhoff.com/TC/PLC PLC_V3.xsd">
+  <POU Name="RoboticArmColorSorting" Id="{00000000-0000-0000-0000-000000000000}" CompositionName="Instance" Access="PUBLIC" Category="0" ManualCall="false" OutputVar="" OutputVarDecl="" Type="FUNCTION_BLOCK" UseTc2Style="false">
+    <Declaration><![CDATA[FUNCTION_BLOCK RoboticArmColorSorting
+VAR_INPUT
+    ColorSensorRed: BOOL;      // 红色物体检测传感器 - 检测到红色物体时置位
+    ColorSensorGreen: BOOL;    // 绿色物体检测传感器 - 检测到绿色物体时置位
+    ColorSensorBlue: BOOL;     // 蓝色物体检测传感器 - 检测到蓝色物体时置位
+END_VAR
+VAR_OUTPUT
+    RoboticArmMove: BOOL;      // 机械臂移动指令 - 置位时触发机械臂抓取和移动动作
+    BinRed: BOOL;              // 红色料箱门控制 - 置位时打开红色料箱门
+    BinGreen: BOOL;            // 绿色料箱门控制 - 置位时打开绿色料箱门
+    BinBlue: BOOL;             // 蓝色料箱门控制 - 置位时打开蓝色料箱门
+END_VAR
+VAR
+    SensorActive: BOOL;        // 传感器激活状态中间变量 - 任一颜色传感器激活时置位
+END_VAR
+]]></Declaration>
+    <Implementation Name="ST">
+      <ST><![CDATA[// 功能块描述: 颜色分类机械臂控制功能块
+// 功能: 根据颜色传感器输入控制机械臂移动和对应料箱门开关
+// 逻辑说明:
+// 1. 当任一颜色传感器检测到物体时，触发机械臂移动
+// 2. 根据检测到的颜色，打开对应颜色的料箱门
+// 3. 确保同一时间只打开一个料箱门或都不打开
+
+// 1. 检查是否有传感器激活
+SensorActive := ColorSensorRed OR ColorSensorGreen OR ColorSensorBlue;
+RoboticArmMove := SensorActive; // 有传感器激活时触发机械臂移动
+
+// 2. 红色料箱控制 - 直接对应红色传感器
+// 实现形式化属性4: 红色料箱直接对应红色传感器
+BinRed := ColorSensorRed;
+
+// 3. 绿色料箱控制 - 仅当绿色传感器激活且其他传感器未激活时打开
+// 实现形式化属性3: 同一时间只能激活一个料箱或都不激活
+BinGreen := ColorSensorGreen AND NOT ColorSensorRed AND NOT ColorSensorBlue;
+
+// 4. 蓝色料箱控制 - 仅当蓝色传感器激活且其他传感器未激活时打开
+// 实现形式化属性3: 同一时间只能激活一个料箱或都不激活
+BinBlue := ColorSensorBlue AND NOT ColorSensorRed AND NOT ColorSensorGreen;
+]]></ST>
+    </Implementation>
+    <Interface Name="RoboticArmColorSorting" Id="{00000000-0000-0000-0000-000000000000}"/>
+    <Attributes>
+      <Attribute Name="CheckAllSymbols" Value="true"/>
+      <Attribute Name="CheckILAddressValidity" Value="true"/>
+      <Attribute Name="CheckSTExpressions" Value="true"/>
+      <Attribute Name="Language" Value="9"/>
+      <Attribute Name="POUType" Value="2"/>
+      <Attribute Name="Author" Value="PLC Automation Team"/>
+      <Attribute Name="Version" Value="1.0.0"/>
+      <Attribute Name="CreationDate" Value="2024-01-01"/>
+      <Attribute Name="ModificationDate" Value="2024-01-01"/>
+      <Attribute Name="Description" Value="颜色分类机械臂控制功能块 - 根据颜色传感器输入控制机械臂移动和料箱门开关"/>
+      <Attribute Name="VersionHistory">
+        <Value>
+          <List>
+            <Item>1.0.0 - 初始版本: 实现基本颜色分类逻辑</Item>
+          </List>
+        </Value>
+      </Attribute>
+      <Attribute Name="Family" Value="Robotics"/>
+      <Attribute Name="Keywords" Value="RoboticArm, ColorSorting, MaterialHandling"/>
+    </Attributes>
+  </POU>
+  <Attributes>
+    <Attribute Name="ExportWithIds" Value="false"/>
+  </Attributes>
+</TcPlcObject>

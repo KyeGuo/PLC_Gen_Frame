@@ -1,0 +1,43 @@
+FUNCTION_BLOCK FB_ThresholdAccumulator
+VAR_INPUT
+    i : DINT;  // 输入整数
+END_VAR
+VAR_OUTPUT
+    o : DINT;  // 输出整数
+END_VAR
+VAR
+    s1 : DINT;  // 内部中间变量
+END_VAR
+
+METHOD Execute  // 重命名为更有意义的方法名，符合TwinCAT动词开头命名规范
+VAR
+    s1_temp : DINT;  // 临时中间变量，避免直接修改内部状态
+END_VAR
+    // 1. 每次调用功能块时初始化临时变量为0
+    s1_temp := 0;
+    
+    // 2. 如果输入i大于0，将其值添加到临时变量
+    IF i > 0 THEN
+        s1_temp := s1_temp + i;
+    END_IF
+    
+    // 3. 在第一个条件之后，如果临时变量等于42，添加8000到临时变量
+    IF s1_temp = 42 THEN
+        s1_temp := s1_temp + 8000;
+    END_IF
+    
+    // 4. 最终输出处理，确保满足形式化属性
+    IF s1_temp < 0 THEN
+        o := 0;  // 输出始终非负
+    ELSE
+        // 确保输出不超过DINT最大值
+        IF s1_temp > DINT#2147483647 THEN
+            o := DINT#2147483647;
+        ELSE
+            o := s1_temp;
+        END_IF
+    END_IF
+    
+    // 更新内部变量s1
+    s1 := o;
+END_METHOD

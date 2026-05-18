@@ -1,0 +1,44 @@
+FUNCTION_BLOCK FB_TrafficManagementSystem
+VAR_INPUT
+    VehicleCount1 : INT; // 路口1车辆计数
+    VehicleCount2 : INT; // 路口2车辆计数
+    VehicleCount3 : INT; // 路口3车辆计数
+    VehicleCount4 : INT; // 路口4车辆计数
+END_VAR
+VAR_OUTPUT
+    TrafficLight1 : BOOL; // 路口1交通灯 (TRUE=绿灯, FALSE=红灯)
+    TrafficLight2 : BOOL; // 路口2交通灯 (TRUE=绿灯, FALSE=红灯)
+    TrafficLight3 : BOOL; // 路口3交通灯 (TRUE=绿灯, FALSE=红灯)
+    TrafficLight4 : BOOL; // 路口4交通灯 (TRUE=绿灯, FALSE=红灯)
+END_VAR
+VAR
+    // 内部变量
+END_VAR
+
+// 处理第一对路口 (1和2)
+IF VehicleCount1 > VehicleCount2 THEN
+    TrafficLight1 := TRUE;
+    TrafficLight2 := FALSE;
+ELSE
+    TrafficLight2 := TRUE;
+    TrafficLight1 := FALSE;
+END_IF;
+
+// 处理第二对路口 (3和4)
+IF VehicleCount3 > VehicleCount4 THEN
+    TrafficLight3 := TRUE;
+    TrafficLight4 := FALSE;
+ELSE
+    TrafficLight4 := TRUE;
+    TrafficLight3 := FALSE;
+END_IF;
+
+// 形式化属性验证 (可选，用于调试)
+// ASSERT(TrafficLight1 <> TrafficLight2, '路口1和2的灯状态必须互补');
+// ASSERT(TrafficLight3 <> TrafficLight4, '路口3和4的灯状态必须互补');
+// ASSERT((VehicleCount1 > VehicleCount2) = TrafficLight1, '路口1灯状态与车辆计数逻辑不符');
+// ASSERT((VehicleCount2 >= VehicleCount1) = TrafficLight2, '路口2灯状态与车辆计数逻辑不符');
+// ASSERT((VehicleCount3 > VehicleCount4) = TrafficLight3, '路口3灯状态与车辆计数逻辑不符');
+// ASSERT((VehicleCount4 >= VehicleCount3) = TrafficLight4, '路口4灯状态与车辆计数逻辑不符');
+
+END_FUNCTION_BLOCK

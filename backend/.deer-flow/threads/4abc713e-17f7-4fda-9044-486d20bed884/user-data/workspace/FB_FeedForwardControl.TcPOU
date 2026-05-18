@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.17">
+  <POU Name="FB_FeedForwardControl" Type="FUNCTION_BLOCK" SPSLanguage="ST" Id="{00000000-0000-0000-0000-000000000000}">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_FeedForwardControl
+VAR_INPUT
+    FlowRate1: REAL; // 反应物1输入流量 (0-100)
+    FlowRate2: REAL; // 反应物2输入流量 (0-100)
+    MixRatio: REAL;  // 混合比例 (反应物1/反应物2)
+END_VAR
+VAR_OUTPUT
+    OutFlowRate1: REAL; // 反应物1输出流量 (0-100)
+    OutFlowRate2: REAL; // 反应物2输出流量 (0-100)
+    Error: BOOL;        // 错误标志
+    ErrorCode: INT;     // 错误代码: 1=MixRatio为0
+END_VAR
+VAR
+    LimitedFlow1: REAL;   // 限制后的反应物1流量
+    LimitedFlow2: REAL;   // 限制后的反应物2流量
+    TotalFlow: REAL;      // 总流量
+    CalculatedFlow1: REAL;// 计算后的反应物1流量
+    CalculatedFlow2: REAL;// 计算后的反应物2流量
+END_VAR
+VAR_METHOD
+    METHOD LimitFlowRate: REAL
+        VAR_INPUT
+            InFlow: REAL;  // 输入流量
+            MinFlow: REAL; // 最小流量限制
+            MaxFlow: REAL; // 最大流量限制
+        END_VAR
+    END_METHOD
+    METHOD CheckMixRatio: BOOL
+        VAR_INPUT
+            Ratio: REAL;   // 混合比例
+        END_VAR
+    END_METHOD
+    METHOD CalculateTotalFlow: REAL
+        VAR_INPUT
+            Flow1: REAL;   // 流量1
+            Flow2: REAL;   // 流量2
+        END_VAR
+    END_METHOD
+END_VAR
+]]></Declaration>
+  <SPSLanguage Name="ST"><![CDATA[
+// 主逻辑
+METHOD FB_FeedForwardControl:
+VAR
+END_VAR
+// 输入处理: 限制输入流量范围
+LimitedFlow1 := LimitFlowRate(FlowRate1, 0.0, 100.0);
+LimitedFlow2 := LimitFlowRate(FlowRate2, 0.0, 100.0);
+
+// 错误检查: 检查MixRatio是否为0
+Error := NOT CheckMixRatio(MixRatio);
+
+IF Error THEN
+    // 错误处理: 设置错误代码，输出流量设为0
+    ErrorCode := 1;
+    OutFlowRate1 := 0.0;
+    OutFlowRate2 := 0.0;
+ELSE
+    // 逻辑计算: 计算总流量和比例流量
+    TotalFlow := CalculateTotalFlow(LimitedFlow1, LimitedFlow2);
+    CalculatedFlow1 := TotalFlow * (MixRatio / (1.0 + MixRatio));
+    CalculatedFlow2 := TotalFlow * (1.0 / (1.0 + MixRatio));
+    
+    // 输出处理: 限制输出流量范围
+    OutFlowRate1 := LimitFlowRate(CalculatedFlow1, 0.0, 100.0);
+    OutFlowRate2 := LimitFlowRate(CalculatedFlow2, 0.0, 100.0);
+    
+    // 清除错误标志
+    ErrorCode := 0;
+END_IF
+
+// 形式化验证断言
+ASSERT(LimitedFlow1 >= 0.0 AND LimitedFlow1 <= 100.0, '输入流量1超出范围');
+ASSERT(LimitedFlow2 >= 0.0 AND LimitedFlow2 <= 100.0, '输入流量2超出范围');
+ASSERT(OutFlowRate1 >= 0.0 AND OutFlowRate1 <= 100.0, '输出流量1超出范围');
+ASSERT(OutFlowRate2 >= 0.0 AND OutFlowRate2 <= 100.0, '输出流量2超出范围');
+ASSERT(CheckMixRatio(MixRatio) OR Error, 'MixRatio为0且未设置错误标志');
+END_METHOD
+
+// 限制流量范围方法
+METHOD LimitFlowRate:
+VAR
+END_VAR
+IF InFlow < MinFlow THEN
+    LimitFlowRate := MinFlow;
+ELSIF InFlow > MaxFlow THEN
+    LimitFlowRate := MaxFlow;
+ELSE
+    LimitFlowRate := InFlow;
+END_IF
+END_METHOD
+
+// 检查MixRatio是否为0方法
+METHOD CheckMixRatio:
+VAR
+END_VAR
+CheckMixRatio := (ABS(Ratio) > 1e-6); // 使用小epsilon避免浮点数精度问题
+END_METHOD
+
+// 计算总流量方法
+METHOD CalculateTotalFlow:
+VAR
+END_VAR
+CalculateTotalFlow := Flow1 + Flow2;
+END_METHOD
+]]></SPSLanguage>
+  <Attributes>
+    <Category Name="General">
+      <Attribute Name="Author">PLC Code Generator</Attribute>
+      <Attribute Name="Comment">反应物前馈控制功能块</Attribute>
+      <Attribute Name="CreationDate" DataType="Date">2024-01-01</Attribute>
+      <Attribute Name="ModificationDate" DataType="Date">2024-01-01</Attribute>
+    </Category>
+  </Attributes>
+  </POU>
+</TcPlcObject>

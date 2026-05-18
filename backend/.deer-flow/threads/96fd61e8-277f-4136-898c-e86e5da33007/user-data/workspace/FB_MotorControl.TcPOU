@@ -1,0 +1,110 @@
+FUNCTION_BLOCK FB_MotorControl
+VAR_INPUT
+    Start : BOOL;
+    Stop : BOOL;
+    TargetSpeed : REAL;
+    MaxSpeed : REAL := 3000.0;
+    MinSpeed : REAL := 0.0;
+    RampTime : TIME := T#1000MS;
+END_VAR
+VAR_OUTPUT
+    MotorData : DUT_MotorData;
+END_VAR
+VAR
+    CurrentState : E_MotorState := E_MotorState#STOPPED;
+    LastStartEdge : BOOL := FALSE;
+    SpeedRampStep : REAL;
+    RampInterval : TIME := T#10MS;
+END_VAR
+
+(* 斜坡计算：每10ms的速度变化量 *)
+SpeedRampStep := (ABS(TargetSpeed - MotorData.CurrentSpeed) * TIME_TO_REAL(RampInterval)) / TIME_TO_REAL(RampTime);
+
+(* 状态机逻辑处理 *)
+CASE CurrentState OF
+    E_MotorState#STOPPED:
+        MotorData.CurrentSpeed := 0.0;
+        MotorData.State := E_MotorState#STOPPED;
+        MotorData.ErrorCode := E_ErrorCode#NO_ERROR;
+        
+        (* 启动上升沿检测 *)
+        IF Start AND NOT LastStartEdge THEN
+            IF TargetSpeed >= MinSpeed AND TargetSpeed <= MaxSpeed THEN
+                CurrentState := E_MotorState#STARTING;
+            ELSE
+                MotorData.ErrorCode := E_ErrorCode#SPEED_OUT_OF_RANGE;
+                CurrentState := E_MotorState#FAULT;
+            END_IF;
+        END_IF;
+        LastStartEdge := Start;
+    
+    E_MotorState#STARTING:
+        MotorData.State := E_MotorState#STARTING;
+        
+        (* 斜坡加速 *)
+        IF MotorData.CurrentSpeed < TargetSpeed THEN
+            MotorData.CurrentSpeed := MIN(MotorData.CurrentSpeed + SpeedRampStep, TargetSpeed);
+        ELSE
+            MotorData.CurrentSpeed := TargetSpeed;
+        END_IF;
+        
+        (* 达到目标速度进入运行状态 *)
+        IF ABS(MotorData.CurrentSpeed - TargetSpeed) <= 0.1 THEN
+            CurrentState := E_MotorState#RUNNING;
+        END_IF;
+        
+        (* 停止优先 *)
+        IF Stop THEN
+            CurrentState := E_MotorState#STOPPING;
+        END_IF;
+    
+    E_MotorState#RUNNING:
+        MotorData.State := E_MotorState#RUNNING;
+        
+        (* 速度调节：平滑调速 *)
+        IF ABS(MotorData.CurrentSpeed - TargetSpeed) > SpeedRampStep THEN
+            IF MotorData.CurrentSpeed < TargetSpeed THEN
+                MotorData.CurrentSpeed := MotorData.CurrentSpeed + SpeedRampStep;
+            ELSE
+                MotorData.CurrentSpeed := MotorData.CurrentSpeed - SpeedRampStep;
+            END_IF;
+        ELSE
+            MotorData.CurrentSpeed := TargetSpeed;
+        END_IF;
+        
+        (* 速度范围检查 *)
+        IF MotorData.CurrentSpeed < MinSpeed OR MotorData.CurrentSpeed > MaxSpeed THEN
+            MotorData.ErrorCode := E_ErrorCode#SPEED_OUT_OF_RANGE;
+            CurrentState := E_MotorState#FAULT;
+        END_IF;
+        
+        (* 停止命令处理 *)
+        IF Stop THEN
+            CurrentState := E_MotorState#STOPPING;
+        END_IF;
+    
+    E_MotorState#STOPPING:
+        MotorData.State := E_MotorState#STOPPING;
+        
+        (* 斜坡减速到0 *)
+        IF MotorData.CurrentSpeed > SpeedRampStep THEN
+            MotorData.CurrentSpeed := MAX(MotorData.CurrentSpeed - SpeedRampStep, 0.0);
+        ELSE
+            MotorData.CurrentSpeed := 0.0;
+            CurrentState := E_MotorState#STOPPED;
+        END_IF;
+    
+    E_MotorState#FAULT:
+        MotorData.State := E_MotorState#FAULT;
+        MotorData.CurrentSpeed := 0.0;
+        
+        (* 故障复位：停止按钮触发 *)
+        IF Stop THEN
+            MotorData.ErrorCode := E_ErrorCode#NO_ERROR;
+            CurrentState := E_MotorState#STOPPED;
+        END_IF;
+END_CASE;
+
+(* 更新输出数据 *)
+MotorData.TargetSpeed := TargetSpeed;
+END_FUNCTION_BLOCK

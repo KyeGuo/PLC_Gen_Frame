@@ -1,0 +1,37 @@
+PROGRAM IO_Mapping
+VAR
+    // 物理IO地址映射（示例）
+    // 输入模块
+    I_UserWeight : AT %IW0.0 : REAL;  // 体重传感器模拟量输入
+    I_WallHeight : AT %IW0.2 : REAL;  // 墙高度传感器模拟量输入
+    I_RouteSelect1 : AT %I0.0 : BOOL; // 路线1选择按钮
+    I_RouteSelect2 : AT %I0.1 : BOOL; // 路线2选择按钮
+    I_RouteSelect3 : AT %I0.2 : BOOL; // 路线3选择按钮
+    
+    // 输出模块
+    Q_MotorSpeed : AT %QW0.0 : REAL;  // 电机速度模拟量输出
+    Q_WallLights : AT %Q0.0 : BOOL;    // 墙灯数字量输出
+    
+    // 中间变量
+    RouteSelector : INT;
+END_VAR
+
+// 输入映射
+MAIN.i_UserWeightSensor := I_UserWeight;
+MAIN.i_WallHeight := I_WallHeight;
+
+// 路线选择逻辑
+IF I_RouteSelect1 THEN
+    RouteSelector := 1;
+ELSIF I_RouteSelect2 THEN
+    RouteSelector := 2;
+ELSIF I_RouteSelect3 THEN
+    RouteSelector := 3;
+ELSE
+    RouteSelector := 1;  // 默认选择路线1
+END_IF;
+MAIN.i_RouteSelector := RouteSelector;
+
+// 输出映射
+Q_MotorSpeed := MAIN.q_ClimbingMotorSpeed;
+Q_WallLights := MAIN.q_WallLights;

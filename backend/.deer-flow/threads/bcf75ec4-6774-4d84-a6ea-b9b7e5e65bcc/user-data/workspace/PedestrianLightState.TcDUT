@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="PedestrianLightState" Type="DUT" ID="{00000000-0000-0000-0000-000000000000}" Version="1.0.0.0" Company="" Author="" Contact="" Comment="行人交通灯状态枚举">
+  <Declaration><Text><![CDATA[TYPE PedestrianLightState :
+    (
+        NORMAL,          // 正常状态：汽车绿灯，计数器0
+        REQUEST_ACCEPTED,// 请求受理：汽车红灯，计数器递增
+        PEDESTRIAN_GREEN // 行人过街：行人绿灯，计数器递增
+    );
+END_TYPE]]></Text></Declaration>
+  <Graph Name="" ID="{00000000-0000-0000-0000-000000000000}" UseFB="false" UseSFC="false" UseST="false" UseIL="false" UseFBD="false" UseLD="false" UseFC="false" IsPOU="false">
+    <FBD Name="" ID="{00000000-0000-0000-0000-000000000000}">
+      <Interface Inputs="0" Outputs="0" InOuts="0" />    </FBD>
+  </Graph>
+</POU>

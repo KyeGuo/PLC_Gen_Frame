@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TC/PLC">
+  <POU Name="WastewaterControl" Type="FUNCTION_BLOCK" Category="0" Id="{00000000-0000-0000-0000-000000000000}">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK WastewaterControl
+VAR_INPUT
+    InFlow : REAL; // 进水量(单位：m³/h)
+    OutFlow : REAL; // 出水量(单位：m³/h)
+    pH : REAL; // 污水pH值
+    TankLvl : REAL; // 水箱液位(单位：%)
+END_VAR
+VAR_OUTPUT
+    Pump1 : BOOL; // 泵1控制信号
+    Pump2 : BOOL; // 泵2控制信号
+    Valve1 : BOOL; // 阀门1控制信号
+    Valve2 : BOOL; // 阀门2控制信号
+END_VAR
+VAR
+    LowInFlow : REAL := 100.0; // 进水量低阈值
+    HighOutFlow : REAL := 90.0; // 出水量高阈值
+    DesiredPH : REAL := 7.0; // 目标pH值
+    HighTankLvl : REAL := 80.0; // 水箱液位高阈值
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 控制逻辑实现
+Pump1 := (InFlow < LowInFlow);
+Pump2 := (OutFlow > HighOutFlow);
+Valve1 := (pH < DesiredPH);
+Valve2 := (TankLvl > HighTankLvl);
+
+// 形式化属性验证断言
+ASSERT(
+    (InFlow >= LowInFlow) OR Pump1,
+    'Assertion failed: InFlow >= 100.0 OR Pump1 = TRUE'
+);
+
+ASSERT(
+    (OutFlow <= HighOutFlow) OR Pump2,
+    'Assertion failed: OutFlow <= 90.0 OR Pump2 = TRUE'
+);
+
+ASSERT(
+    (pH >= DesiredPH) OR Valve1,
+    'Assertion failed: pH >= 7.0 OR Valve1 = TRUE'
+);
+
+ASSERT(
+    (TankLvl <= HighTankLvl) OR Valve2,
+    'Assertion failed: TankLvl <= 80.0 OR Valve2 = TRUE'
+);
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,8 @@
+TYPE TCleanState:
+    (
+        STATE_IDLE,             // 0: 待机状态
+        STATE_ELEVATOR_UP,      // 1: 电梯上升阶段
+        STATE_CLEANING_DOWN,    // 2: 清洁下降阶段
+        STATE_COMPLETE          // 3: 清洁完成状态
+    );
+END_TYPE

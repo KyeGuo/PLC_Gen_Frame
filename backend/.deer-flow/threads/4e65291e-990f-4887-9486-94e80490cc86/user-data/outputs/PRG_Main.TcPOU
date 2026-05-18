@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="PRG_Main" Id="{5f913d5a-5f8c-368c-37cd-927f8af73544}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM PRG_Main
+VAR_INPUT
+  bStartButton : BOOL; (* 启动按钮输入 *)
+  bStopButton : BOOL; (* 停止按钮输入 *)
+  fSpeedPotentiometer : REAL; (* 速度电位器输入 (0.0-100.0%) *)
+  fCurrentSensor : REAL; (* 电流传感器输入 (A) *)
+  bResetButton : BOOL; (* 复位按钮输入 *)
+END_VAR
+VAR_OUTPUT
+  eMotorState : E_MotorState; (* 电机状态输出 *)
+  fActualSpeed : REAL; (* 实际速度输出 (%) *)
+  bMotorRunning : BOOL; (* 电机运行指示 *)
+  bMotorFault : BOOL; (* 电机故障指示 *)
+  bOverloadWarning : BOOL; (* 过载警告指示 *)
+  eCurrentError : E_MotorError; (* 当前错误码 *)
+  aoMotorOutput : BOOL; (* 电机输出控制 *)
+END_VAR
+VAR
+  fbMotorCtrl : FB_MotorControl; (* 电机控制FB实例 *)
+  fbOverload : FB_OverloadProtection; (* 过载保护FB实例 *)
+  stMotorParams : DUT_MotorParameters; (* 电机参数配置 *)
+  bResetEdge : BOOL; (* 复位按钮上升沿检测 *)
+  bResetLast : BOOL; (* 上周期复位按钮状态 *)
+  bFaultActiveLast : BOOL; (* 上周期故障状态 *)
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* 初始化电机参数 *)
+ST_MOTOR_PARAMS:
+IF NOT bMotorRunning THEN
+  stMotorParams.fSpeedSetpoint := 0.0;
+  stMotorParams.fCurrentLimit := 10.0; (* 10A电流上限 *)
+  stMotorParams.nStartupDelay := 1000; (* 1秒启动延时 *)
+  stMotorParams.nStopDelay := 500; (* 0.5秒停止延时 *)
+  stMotorParams.nOverloadDelay := 2000; (* 2秒过载延时 *)
+  stMotorParams.fOverloadHysteresis := 10.0; (* 10%回差 *)
+END_IF
+
+(* 上升沿检测 *)
+bResetEdge := bResetButton AND NOT bResetLast;
+bResetLast := bResetButton;
+
+(* 实例化电机控制FB *)
+fbMotorCtrl(
+  bStart := bStartButton,
+  bStop := bStopButton OR fbOverload.bOverloadFault,
+  fSpeedSetpoint := fSpeedPotentiometer,
+  stParameters := stMotorParams,
+  bFaultReset := bResetEdge,
+  eMotorState => eMotorState,
+  fActualSpeed => fActualSpeed,
+  eCurrentError => eCurrentError,
+  bRunning => bMotorRunning,
+  bFault => bMotorFault
+);
+
+(* 实例化过载保护FB *)
+fbOverload(
+  fCurrentFeedback := fCurrentSensor,
+  fCurrentLimit := stMotorParams.fCurrentLimit,
+  nOverloadDelay := stMotorParams.nOverloadDelay,
+  fOverloadHysteresis := stMotorParams.fOverloadHysteresis,
+  bReset := bResetEdge OR (NOT bMotorRunning AND bFaultActiveLast),
+  bEnable := bMotorRunning OR (eMotorState = E_MotorState#STARTING),
+  bOverloadWarning => bOverloadWarning,
+  bOverloadFault => ,
+  fCurrentPercentage => ,
+  eFaultState => ,
+  tTimeToTrip =>
+);
+
+(* 故障状态跟踪 *)
+bFaultActiveLast := fbOverload.bOverloadFault;
+
+(* 电机输出控制 *)
+aioMotorOutput := bMotorRunning AND NOT bMotorFault;
+
+(* 故障联动：过载故障时触发电机故障 *)
+IF fbOverload.bOverloadFault THEN
+  eCurrentError := E_MotorError#OVERLOAD_FAULT;
+  bMotorFault := TRUE;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="PRG_Main">
+      <LineId Id="1" Count="48" />
+    </LineIds>
+</POU>
+</TcPlcObject>

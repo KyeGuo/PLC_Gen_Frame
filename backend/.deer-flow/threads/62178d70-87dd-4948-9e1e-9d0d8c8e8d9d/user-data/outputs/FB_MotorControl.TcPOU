@@ -1,0 +1,103 @@
+FUNCTION_BLOCK FB_MotorControl
+VAR_INPUT
+    bStart : BOOL; // 启动信号
+    bStop : BOOL; // 停止信号
+    nTargetSpeed : INT; // 目标转速（0-3000）
+    fCurrent : REAL; // 当前电流
+END_VAR
+VAR_OUTPUT
+    eState : E_MotorState; // 电机状态
+    eErrorCode : E_ErrorCode; // 错误码
+    nActualSpeed : INT; // 实际转速
+    bMotorOn : BOOL; // 电机输出
+END_VAR
+VAR
+    stMotorData : DUT_MotorData; // 电机数据
+    tOverloadTimer : TON; // 过载延时定时器
+    tRampTimer : TON; // 调速斜坡定时器
+    nRampStep : INT := 10; // 调速步长
+END_VAR
+
+// 状态机处理
+CASE stMotorData.eState OF
+    E_MotorState.STOPPED:
+        IF bStart THEN
+            stMotorData.eState := E_MotorState.STARTING;
+            stMotorData.nTargetSpeed := nTargetSpeed;
+            stMotorData.eErrorCode := E_ErrorCode.NO_ERROR;
+        END_IF;
+        bMotorOn := FALSE;
+        nActualSpeed := 0;
+    
+    E_MotorState.STARTING:
+        // 斜坡启动
+        tRampTimer(IN := TRUE, PT := T#100MS);
+        IF tRampTimer.Q THEN
+            stMotorData.nCurrentSpeed := stMotorData.nCurrentSpeed + nRampStep;
+            tRampTimer.IN := FALSE;
+        END_IF;
+        IF stMotorData.nCurrentSpeed >= stMotorData.nTargetSpeed THEN
+            stMotorData.eState := E_MotorState.RUNNING;
+        END_IF;
+        bMotorOn := TRUE;
+        nActualSpeed := stMotorData.nCurrentSpeed;
+    
+    E_MotorState.RUNNING:
+        // 调速处理
+        IF nTargetSpeed <> stMotorData.nTargetSpeed THEN
+            stMotorData.nTargetSpeed := nTargetSpeed;
+            tRampTimer(IN := TRUE, PT := T#100MS);
+        END_IF;
+        IF tRampTimer.Q THEN
+            IF stMotorData.nTargetSpeed > stMotorData.nCurrentSpeed THEN
+                stMotorData.nCurrentSpeed := stMotorData.nCurrentSpeed + nRampStep;
+            ELSE
+                stMotorData.nCurrentSpeed := stMotorData.nCurrentSpeed - nRampStep;
+            END_IF;
+            tRampTimer.IN := FALSE;
+        END_IF;
+        // 过载保护
+        stMotorData.nCurrentCurrent := fCurrent;
+        IF fCurrent > stMotorData.fOverloadThreshold THEN
+            tOverloadTimer(IN := TRUE, PT := T#5S);
+            IF tOverloadTimer.Q THEN
+                stMotorData.eState := E_MotorState.FAULT;
+                stMotorData.eErrorCode := E_ErrorCode.OVERLOAD;
+            END_IF;
+        ELSE
+            tOverloadTimer.IN := FALSE;
+        END_IF;
+        // 停止处理
+        IF bStop THEN
+            stMotorData.eState := E_MotorState.STOPPING;
+        END_IF;
+        bMotorOn := TRUE;
+        nActualSpeed := stMotorData.nCurrentSpeed;
+    
+    E_MotorState.STOPPING:
+        // 斜坡停止
+        tRampTimer(IN := TRUE, PT := T#100MS);
+        IF tRampTimer.Q THEN
+            stMotorData.nCurrentSpeed := stMotorData.nCurrentSpeed - nRampStep;
+            tRampTimer.IN := FALSE;
+        END_IF;
+        IF stMotorData.nCurrentSpeed <= 0 THEN
+            stMotorData.eState := E_MotorState.STOPPED;
+        END_IF;
+        bMotorOn := TRUE;
+        nActualSpeed := stMotorData.nCurrentSpeed;
+    
+    E_MotorState.FAULT:
+        bMotorOn := FALSE;
+        nActualSpeed := 0;
+        // 复位逻辑
+        IF NOT bStart AND NOT bStop THEN
+            stMotorData.eState := E_MotorState.STOPPED;
+        END_IF;
+END_CASE;
+
+// 更新输出
+eState := stMotorData.eState;
+eErrorCode := stMotorData.eErrorCode;
+nActualSpeed := stMotorData.nCurrentSpeed;
+bMotorOn := stMotorData.bIsRunning;

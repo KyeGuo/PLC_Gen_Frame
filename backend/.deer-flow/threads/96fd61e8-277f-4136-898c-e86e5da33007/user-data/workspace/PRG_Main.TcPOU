@@ -1,0 +1,68 @@
+PROGRAM PRG_Main
+VAR_GLOBAL
+    (* IO变量定义 - 实际项目中需根据硬件配置地址 *)
+    StartButton : BOOL AT %I*;      (* 启动按钮 - 输入 *)
+    StopButton : BOOL AT %I*;       (* 停止按钮 - 输入 *)
+    SpeedPotentiometer : REAL AT %IW*;  (* 速度电位器 - 输入 *)
+    CurrentSensor : REAL AT %IW*;   (* 电流传感器 - 输入 *)
+    
+    (* 输出变量 *)
+    RunIndicator : BOOL AT %Q*;     (* 运行指示灯 - 输出 *)
+    FaultIndicator : BOOL AT %Q*;   (* 故障指示灯 - 输出 *)
+    ActualSpeedOutput : REAL AT %QW*;  (* 实际速度输出 - 输出 *)
+END_VAR
+VAR
+    (* FB实例声明 *)
+    MotorCtrl : FB_MotorControl;
+    OverloadProt : FB_OverloadProtection;
+    
+    (* 内部变量 *)
+    MotorData : DUT_MotorData;
+    OverloadDetected : BOOL;
+    FaultCode : E_ErrorCode;
+END_VAR
+
+(* 调用过载保护模块 *)
+OverloadProt(
+    MotorCurrent := CurrentSensor,
+    OverloadThreshold := 10.0,
+    OverloadDelay := T#2000MS,
+    HysteresisCoeff := 0.9,
+    OverloadDetected => OverloadDetected,
+    FaultCode => FaultCode
+);
+
+(* 调用电机控制模块 - 过载时强制停止 *)
+MotorCtrl(
+    Start := StartButton,
+    Stop := StopButton OR OverloadDetected,
+    TargetSpeed := SpeedPotentiometer,
+    MaxSpeed := 3000.0,
+    MinSpeed := 0.0,
+    RampTime := T#1500MS,
+    MotorData => MotorData
+);
+
+(* 状态同步：过载时更新电机故障状态 *)
+IF OverloadDetected THEN
+    MotorData.State := E_MotorState#FAULT;
+    MotorData.ErrorCode := E_ErrorCode#OVERLOAD;
+END_IF;
+
+(* 更新输出变量 *)
+RunIndicator := (MotorData.State = E_MotorState#RUNNING) OR (MotorData.State = E_MotorState#STARTING);
+FaultIndicator := (MotorData.State = E_MotorState#FAULT) OR OverloadDetected;
+ActualSpeedOutput := MotorData.CurrentSpeed;
+
+(* 诊断信息处理 - 可扩展HMI显示或日志 *)
+IF MotorData.ErrorCode <> E_ErrorCode#NO_ERROR THEN
+    CASE MotorData.ErrorCode OF
+        E_ErrorCode#OVERLOAD:
+            (* 过载故障记录 *)
+        E_ErrorCode#SPEED_OUT_OF_RANGE:
+            (* 速度超出范围记录 *)
+        E_ErrorCode#FAULT_RESET_REQUIRED:
+            (* 需要复位记录 *)
+    END_CASE;
+END_IF;
+END_PROGRAM

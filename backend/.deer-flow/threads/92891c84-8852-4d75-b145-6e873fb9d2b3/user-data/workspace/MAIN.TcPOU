@@ -1,0 +1,59 @@
+PROGRAM MAIN
+VAR
+    fbClimbingCtrl : FB_ClimbingWallCtrl;
+    
+    // 输入变量 - 来自IO模块
+    i_UserWeightSensor : REAL;
+    i_WallHeight : REAL;
+    i_RouteSelector : INT;
+    
+    // 输出变量 - 到IO模块
+    q_ClimbingMotorSpeed : REAL;
+    q_WallLights : BOOL;
+    
+    // 系统状态监控
+    SystemStatus : ST_ClimbingSystemStatus;
+    PropertiesValid : BOOL;
+END_VAR
+
+// 主程序循环
+
+// 1. 调用核心控制功能块
+fbClimbingCtrl(
+    UserWeightSensor := i_UserWeightSensor,
+    WallHeight := i_WallHeight,
+    RouteSelector := i_RouteSelector,
+    ClimbingMotorSpeed => q_ClimbingMotorSpeed,
+    WallLights => q_WallLights,
+    WallDifficultyLevel => GVL_ClimbingSystem.WallDifficultyLevel,
+    ErrorCode => GVL_ClimbingSystem.LastError,
+    ErrorMsg => GVL_ClimbingSystem.LastErrorMsg
+);
+
+// 2. 更新全局状态
+GVL_ClimbingSystem.CurrentMotorSpeed := q_ClimbingMotorSpeed;
+GVL_ClimbingSystem.LightsStatus := q_WallLights;
+GVL_ClimbingSystem.SystemReady := (fbClimbingCtrl.ErrorCode = 0);
+
+// 3. 更新系统状态结构体
+SystemStatus.CurrentWeight := i_UserWeightSensor;
+SystemStatus.CurrentHeight := i_WallHeight;
+SystemStatus.CurrentRoute := TO_ET_RouteSelector(i_RouteSelector);
+SystemStatus.CurrentDifficulty := GVL_ClimbingSystem.WallDifficultyLevel;
+SystemStatus.MotorSpeed := q_ClimbingMotorSpeed;
+SystemStatus.LightsActive := q_WallLights;
+SystemStatus.SystemReady := GVL_ClimbingSystem.SystemReady;
+SystemStatus.ErrorCode := fbClimbingCtrl.ErrorCode;
+SystemStatus.ErrorMsg := fbClimbingCtrl.ErrorMsg;
+
+// 4. 执行形式化属性验证
+PropertiesValid := fbClimbingCtrl.ValidateProperties();
+
+// 5. 如果属性验证失败，进入安全状态
+IF NOT PropertiesValid THEN
+    q_ClimbingMotorSpeed := 0.0;  // 停止电机
+    q_WallLights := FALSE;        // 关闭灯
+    GVL_ClimbingSystem.SystemReady := FALSE;
+    GVL_ClimbingSystem.LastError := 99;
+    GVL_ClimbingSystem.LastErrorMsg := 'Formal property validation failed - entering safe state';
+END_IF

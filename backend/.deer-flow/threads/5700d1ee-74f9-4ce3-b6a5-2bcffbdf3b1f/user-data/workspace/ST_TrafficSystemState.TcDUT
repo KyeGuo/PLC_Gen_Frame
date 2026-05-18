@@ -1,0 +1,13 @@
+TYPE ST_TrafficSystemState :
+STRUCT
+    // 交通组状态
+    Group1 : ST_TrafficGroup; // 第一组交叉路口 (路口1和路口2)
+    Group2 : ST_TrafficGroup; // 第二组交叉路口 (路口3和路口4)
+    
+    // 系统状态
+    SystemReady : BOOL;       // 系统就绪状态
+    FaultDetected : BOOL;     // 故障检测标志
+    UpdateCounter : DINT;     // 系统更新计数器
+    LastUpdateTime : DT;      // 上次更新时间
+END_STRUCT
+END_TYPE

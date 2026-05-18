@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1" ProductVersion="3.1.4024.17">
+  <DUT Name="DT_MotorControlTypes" Id="{6F5A7D8E-1B2C-4D3E-8F9A-0B1C2D3E4F56}">
+    <Declaration><![CDATA[
+TYPE
+  // 电机运行状态枚举
+  E_MotorState : (
+    Stopped := 0,          // 停止状态
+    RunningForward := 1,   // 正转运行
+    RunningReverse := 2,   // 反转运行
+    Fault := 3             // 故障状态
+  );
+  
+  // 故障代码枚举
+  E_FaultCode : (
+    NoFault := 0,          // 无故障
+    OverCurrent := 1,      // 过流故障
+    OverTemperature := 2,  // 过热故障
+    Overload := 3,         // 过载故障
+    ShortCircuit := 4,     // 短路故障
+    EStopTriggered := 5,   // 急停触发
+    DirectionConflict := 6,// 正反转冲突
+    SpeedOutOfRange := 7   // 速度给定超范围
+  );
+  
+  // 故障历史记录结构体
+  S_FaultHistoryEntry : STRUCT
+    FaultCode : E_FaultCode;    // 故障代码
+    OccurTime : DT;             // 故障发生时间
+    ResetTime : DT;             // 故障复位时间
+    IsActive : BOOL;            // 故障是否未复位
+  END_STRUCT;
+  
+  // 故障历史数组（最多10条）
+  ARRAY_FaultHistory : ARRAY[0..9] OF S_FaultHistoryEntry;
+  
+  // 电机诊断数据结构体
+  S_MotorDiagnostics : STRUCT
+    RunTimeTotal : TIME;        // 累计运行时间
+    StartCount : UINT;          // 启动次数
+    CurrentFault : E_FaultCode; // 当前故障
+    FaultHistory : ARRAY_FaultHistory; // 故障历史记录
+    FaultHistoryIndex : UINT;   // 当前记录索引
+    TotalFaults : UINT;         // 总故障次数
+  END_STRUCT;
+END_TYPE
+    ]]></Declaration>
+  </DUT>
+</TcPlcObject>

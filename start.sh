@@ -52,7 +52,35 @@ echo "网关日志: $SCRIPT_DIR/gateway.log"
 sleep 3
 
 echo ""
-echo "3. 启动前端服务..."
+echo "3. 启动 Benchmark 测试服务 (端口 5000)..."
+
+# 检查 Agents4PLC 是否存在
+if [ -d "$SCRIPT_DIR/../Agents4PLC_release" ]; then
+    echo "Benchmark 服务启动中..."
+    # 切换到 Agents4PLC 目录
+    cd "$SCRIPT_DIR/../Agents4PLC_release"
+    # 使用 Agents4PLC 的虚拟环境（如果存在且完整）
+    if [ -f "venv/bin/activate" ]; then
+        source venv/bin/activate
+    elif [ -f ".venv/bin/activate" ]; then
+        source .venv/bin/activate
+    else
+        echo "警告：Agents4PLC 虚拟环境不完整，使用当前 Python 环境"
+    fi
+    python server.py > "$SCRIPT_DIR/benchmark.log" 2>&1 &
+    BENCHMARK_PID=$!
+    echo "Benchmark 服务 PID: $BENCHMARK_PID"
+    echo "Benchmark 日志: $SCRIPT_DIR/benchmark.log"
+else
+    echo "警告：未找到 Agents4PLC_release 目录，跳过 Benchmark 服务"
+    BENCHMARK_PID=""
+fi
+
+# 等待 Benchmark 启动
+sleep 3
+
+echo ""
+echo "4. 启动前端服务..."
 cd "$SCRIPT_DIR/frontend"
 
 # 在后台启动前端
@@ -65,6 +93,9 @@ echo "前端日志: $SCRIPT_DIR/frontend.log"
 # 保存 PID
 echo "$LANGGRAPH_PID" > "$SCRIPT_DIR/langgraph.pid"
 echo "$GATEWAY_PID" > "$SCRIPT_DIR/gateway.pid"
+if [ -n "$BENCHMARK_PID" ]; then
+    echo "$BENCHMARK_PID" > "$SCRIPT_DIR/benchmark.pid"
+fi
 echo "$FRONTEND_PID" > "$SCRIPT_DIR/frontend.pid"
 
 echo ""
@@ -73,6 +104,7 @@ echo "  服务启动成功！"
 echo "======================================="
 echo "  前端地址: http://localhost:3000"
 echo "  后端 API: http://localhost:8001"
+echo "  基准测试: http://localhost:5000"
 echo ""
 echo "  停止服务命令:"
 echo "    ./stop.sh"
@@ -80,11 +112,22 @@ echo ""
 echo "  查看日志:"
 echo "    tail -f langgraph.log"
 echo "    tail -f gateway.log"
+echo "    tail -f benchmark.log"
 echo "    tail -f frontend.log"
 echo "======================================="
 
 # 捕获退出信号
-trap 'echo "正在停止服务..."; kill $LANGGRAPH_PID $GATEWAY_PID $FRONTEND_PID 2>/dev/null; rm -f $SCRIPT_DIR/*.pid; exit' INT TERM
+stop_all() {
+    echo "正在停止服务..."
+    kill $LANGGRAPH_PID $GATEWAY_PID $FRONTEND_PID 2>/dev/null
+    if [ -n "$BENCHMARK_PID" ]; then
+        kill $BENCHMARK_PID 2>/dev/null
+    fi
+    rm -f "$SCRIPT_DIR"/*.pid
+    exit
+}
+
+trap 'stop_all' INT TERM
 
 # 保持脚本运行
 wait

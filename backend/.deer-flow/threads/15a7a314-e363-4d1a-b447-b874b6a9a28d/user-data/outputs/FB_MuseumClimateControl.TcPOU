@@ -1,0 +1,81 @@
+// Museum Climate Control Function Block
+// Author: PLC Expert
+// Version: 1.0
+// Description: Controls museum climate systems including HVAC, humidifier, dehumidifier, and lighting
+// TwinCAT 3 / IEC 61131-3 compliant
+
+FUNCTION_BLOCK FB_MuseumClimateControl
+VAR_INPUT
+    HumiditySensor : REAL;               // Current humidity reading from sensor (%)
+    TemperatureSensor : REAL;            // Current temperature reading from sensor (°C)
+    LightSensor : BOOL;                  // Light presence sensor (TRUE = light detected)
+    LightThreshold : BOOL;               // Light threshold override (TRUE = enable light control)
+END_VAR
+VAR_OUTPUT
+    HVACSystem : BOOL;                   // HVAC system control (TRUE = ON, FALSE = OFF)
+    Humidifier : BOOL;                   // Humidifier control (TRUE = ON, FALSE = OFF)
+    Dehumidifier : BOOL;                 // Dehumidifier control (TRUE = ON, FALSE = OFF)
+    LightControl : BOOL;                 // Lighting control (TRUE = ON, FALSE = OFF)
+END_VAR
+VAR
+    // Internal variables for control logic
+    HumiditySetpoint : REAL := 50.0;     // Optimal humidity setpoint (%)
+    TemperatureSetpoint : REAL := 20.0;  // Optimal temperature setpoint (°C)
+END_VAR
+
+METHOD ControlHumidity
+    // Control logic for humidity regulation
+    // Humidity below setpoint: activate humidifier
+    IF HumiditySensor < HumiditySetpoint THEN
+        Humidifier := TRUE;
+        Dehumidifier := FALSE;
+    // Humidity above setpoint: activate dehumidifier
+    ELSIF HumiditySensor > HumiditySetpoint THEN
+        Humidifier := FALSE;
+        Dehumidifier := TRUE;
+    // Humidity at setpoint: deactivate both
+    ELSE
+        Humidifier := FALSE;
+        Dehumidifier := FALSE;
+    END_IF;
+END_METHOD
+
+METHOD ControlTemperature
+    // Control logic for temperature regulation
+    // Temperature outside setpoint range: activate HVAC
+    IF TemperatureSensor <> TemperatureSetpoint THEN
+        HVACSystem := TRUE;
+    // Temperature at setpoint: deactivate HVAC
+    ELSE
+        HVACSystem := FALSE;
+    END_IF;
+END_METHOD
+
+METHOD ControlLighting
+    // Control logic for lighting regulation
+    // Turn off lights only when both light sensor detects light and threshold is enabled
+    IF LightSensor AND LightThreshold THEN
+        LightControl := FALSE;
+    // Otherwise keep lights on
+    ELSE
+        LightControl := TRUE;
+    END_IF;
+END_METHOD
+
+METHOD SafetyInterlock
+    // Safety interlock: ensure humidifier and dehumidifier never run simultaneously
+    // This provides redundant protection against simultaneous operation
+    IF Humidifier AND Dehumidifier THEN
+        // In case of conflict, prioritize safety by turning both off
+        Humidifier := FALSE;
+        Dehumidifier := FALSE;
+    END_IF;
+END_METHOD
+
+// Main execution logic - cyclic execution
+THIS.ControlHumidity();
+THIS.ControlTemperature();
+THIS.ControlLighting();
+THIS.SafetyInterlock();
+
+END_FUNCTION_BLOCK

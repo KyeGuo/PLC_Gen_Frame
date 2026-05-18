@@ -11,6 +11,8 @@ import {
   RocketIcon,
   XIcon,
   ZapIcon,
+  PlayCircleIcon,
+  ChevronDownIcon,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -160,6 +162,17 @@ export function InputBox({
   const [pendingSuggestion, setPendingSuggestion] = useState<string | null>(
     null,
   );
+
+  // 测试任务相关状态
+  const [testTasks, setTestTasks] = useState<any[]>([]);
+  const [testTasksLoading, setTestTasksLoading] = useState(false);
+  const [selectedBenchmark, setSelectedBenchmark] = useState("medium.jsonl");
+  const [benchmarks, setBenchmarks] = useState<any[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (models.length === 0) {
@@ -338,6 +351,55 @@ export function InputBox({
     setTimeout(() => requestFormSubmit(), 0);
   }, [pendingSuggestion, requestFormSubmit, textInput]);
 
+  // 加载测试任务
+  const loadTestTasks = useCallback(async (benchmark?: string) => {
+    const targetBenchmark = benchmark || selectedBenchmark;
+    setTestTasksLoading(true);
+    try {
+      // 先获取可用的基准测试文件
+      const benchmarksResponse = await fetch("http://localhost:5000/api/test-benchmarks");
+      const benchmarksData = await benchmarksResponse.json();
+      // 确保 benchmarks 是数组
+      setBenchmarks(Array.isArray(benchmarksData?.benchmarks) ? benchmarksData.benchmarks : []);
+
+      // 获取测试任务
+      const response = await fetch(`http://localhost:5000/api/test-tasks?benchmark=${targetBenchmark}&limit=50`);
+      const data = await response.json();
+      // 确保 tasks 是数组
+      setTestTasks(Array.isArray(data?.tasks) ? data.tasks : []);
+    } catch (error) {
+      console.error("Failed to load test tasks:", error);
+      setTestTasks([]);
+    } finally {
+      setTestTasksLoading(false);
+    }
+  }, [selectedBenchmark]);
+
+  // 处理测试任务选择
+  const handleTestTaskSelect = useCallback((task: typeof testTasks[0]) => {
+    if (!task) return;
+    
+    // 构建测试提示词
+    const prompt =
+      `请根据以下需求生成PLC功能块的Structured Text (ST)代码：\n\n` +
+      `${task.instruction}\n\n` +
+      `生成的代码必须满足以下形式化属性：\n` +
+      `${JSON.stringify(task.properties_to_be_validated, null, 2)}\n\n` +
+      `请按照完整的工作流程进行：分析需求 -> 设计方案 -> 编写代码 -> 验证代码 -> 优化改进。确保生成的代码符合TwinCAT规范。`;
+    
+    // 设置输入框内容
+    textInput.setInput(prompt);
+    // 自动提交
+    setTimeout(() => requestFormSubmit(), 500);
+  }, [requestFormSubmit, textInput]);
+
+  // 处理基准测试选择变化
+  const handleBenchmarkChange = useCallback((benchmarkName: string) => {
+    setSelectedBenchmark(benchmarkName);
+    // 当基准测试改变时，重新加载任务（直接传递新的基准测试名称）
+    loadTestTasks(benchmarkName);
+  }, [loadTestTasks]);
+
   const showFollowups =
     !disabled &&
     !isNewThread &&
@@ -370,14 +432,17 @@ export function InputBox({
       return;
     }
 
-    const lastAi = [...thread.messages].reverse().find((m) => m.type === "ai");
+    // 确保 thread.messages 是数组
+    const messages = Array.isArray(thread.messages) ? thread.messages : [];
+    
+    const lastAi = [...messages].reverse().find((m) => m.type === "ai");
     const lastAiId = lastAi?.id ?? null;
     if (!lastAiId || lastAiId === lastGeneratedForAiIdRef.current) {
       return;
     }
     lastGeneratedForAiIdRef.current = lastAiId;
 
-    const recent = thread.messages
+    const recent = messages
       .filter((m) => m.type === "human" || m.type === "ai")
       .map((m) => {
         const role = m.type === "human" ? "user" : "assistant";
@@ -494,16 +559,73 @@ export function InputBox({
         </PromptInputBody>
         <PromptInputFooter className="flex">
           <PromptInputTools>
-            {/* TODO: Add more connectors here
-          <PromptInputActionMenu>
-            <PromptInputActionMenuTrigger className="px-2!" />
-            <PromptInputActionMenuContent>
-              <PromptInputActionAddAttachments
-                label={t.inputBox.addAttachments}
-              />
-            </PromptInputActionMenuContent>
-          </PromptInputActionMenu> */}
+            {/* TODO: Add more connectors here */}
             <AddAttachmentsButton className="px-2!" />
+            {/* 测试按钮 */}
+            {mounted && (
+              <DropdownMenu onOpenChange={(open) => open && loadTestTasks()}>
+                <DropdownMenuTrigger asChild>
+                  <PromptInputButton className="px-2!" title="Run PLC Benchmark Test">
+                    <PlayCircleIcon className="size-3" />
+                  </PromptInputButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-96 max-h-[600px] overflow-y-auto">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="text-muted-foreground text-xs px-2 py-1">
+                      Select Benchmark
+                    </DropdownMenuLabel>
+                    {benchmarks.map((benchmark) => (
+                      <DropdownMenuItem
+                        key={benchmark.name}
+                        className={cn(
+                          selectedBenchmark === benchmark.name
+                            ? "text-accent-foreground bg-accent/20"
+                            : "text-muted-foreground/65",
+                        )}
+                        onClick={() => handleBenchmarkChange(benchmark.name)}
+                      >
+                        {benchmark.name} ({benchmark.task_count} tasks)
+                        {selectedBenchmark === benchmark.name && (
+                          <CheckIcon className="ml-auto size-4" />
+                        )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-muted-foreground text-xs px-2 py-1">
+                    Test Tasks
+                  </DropdownMenuLabel>
+                  {testTasksLoading ? (
+                    <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                      Loading tasks...
+                    </div>
+                  ) : !Array.isArray(testTasks) || testTasks.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                      No tasks available
+                    </div>
+                  ) : (
+                    testTasks.map((task) => (
+                      <DropdownMenuItem
+                        key={task.id}
+                        className="text-left"
+                        onClick={() => handleTestTaskSelect(task)}
+                      >
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{task.id}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground line-clamp-2">
+                            {task.instruction.substring(0, 100)}...
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            )}
             <PromptInputActionMenu>
               <ModeHoverGuide
                 mode={

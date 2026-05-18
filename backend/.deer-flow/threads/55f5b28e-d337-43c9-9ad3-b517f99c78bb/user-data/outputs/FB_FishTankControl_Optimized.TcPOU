@@ -1,0 +1,19 @@
+FUNCTION_BLOCK FishTankControl
+VAR_INPUT
+    OxygenLevel : REAL; (* 鱼缸氧气浓度 (mg/L) *)
+    WaterTemperature : REAL; (* 水温 (°C) *)
+    FeedingTime : TIME; (* 定时喂食时间 *)
+    CurrentTime : TIME; (* 当前系统时间 *)
+END_VAR
+VAR_OUTPUT
+    OxygenValve : BOOL; (* 氧气阀控制: TRUE=开启, FALSE=关闭 *)
+    Heater : BOOL; (* 加热棒控制: TRUE=开启, FALSE=关闭 *)
+    Feeder : BOOL; (* 喂食器控制: TRUE=开启, FALSE=关闭 *)
+END_VAR
+
+(* 简化逻辑表达，提高可读性 *)
+OxygenValve := (OxygenLevel < 5.0);
+Heater := (WaterTemperature < 25.0);
+Feeder := (CurrentTime >= FeedingTime);
+
+END_FUNCTION_BLOCK

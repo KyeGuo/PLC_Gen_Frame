@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TC/PLC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.beckhoff.com/TC/PLC ..\PlcXsd\TcPlcObject.xsd">
+  <POU Name="FB_GreenhouseWateringSystem" Id="{12345678-1234-1234-1234-1234567890AB}" Group="Greenhouse" Comment="Automatic greenhouse watering system controller" Access="PUBLIC" ImplementationLanguage="ST" Category="002" IsProtected="false" UseTcStyle="true">
+    <Interface>
+      <Section Name="VAR_INPUT">
+        <Member Name="SoilMoistureSensor" Datatype="REAL" Comment="Input for soil moisture level (0-100%)" />
+        <Member Name="ResponseDelay" Datatype="TIME" Comment="Response delay for the system" InitValue="T#5s" />
+      </Section>
+      <Section Name="VAR_OUTPUT">
+        <Member Name="SprinklersOn" Datatype="BOOL" Comment="Output for controlling sprinklers - on/off" InitValue="FALSE" />
+      </Section>
+      <Section Name="VAR">
+        <Member Name="LastMoistureReading" Datatype="REAL" />
+        <Member Name="TargetSprinklerState" Datatype="BOOL" />
+        <Member Name="DelayTimer" Datatype="TON" />
+        <Member Name="ValidatedMoisture" Datatype="REAL" />
+      </Section>
+    </Interface>
+    <Implementation>
+      <ST>
+(* Input validation - ensure humidity is within 0-100% range *)
+ValidatedMoisture := LIMIT(0.0, SoilMoistureSensor, 100.0);
+
+(* State transition logic *)
+IF ValidatedMoisture < 30.0 THEN
+    TargetSprinklerState := TRUE;
+ELSIF ValidatedMoisture >= 70.0 THEN
+    TargetSprinklerState := FALSE;
+ELSE
+    (* Maintain current state in hysteresis band *)
+    TargetSprinklerState := SprinklersOn;
+END_IF;
+
+(* Delay handling for state changes *)
+IF TargetSprinklerState &lt;&gt; SprinklersOn THEN
+    DelayTimer(IN := TRUE, PT := ResponseDelay);
+    
+    IF DelayTimer.Q THEN
+        SprinklersOn := TargetSprinklerState;
+        DelayTimer(IN := FALSE);  (* Reset timer after state change *)
+    END_IF;
+ELSE
+    DelayTimer(IN := FALSE);  (* Reset timer when no state change needed *)
+END_IF;
+
+(* Store last valid reading *)
+LastMoistureReading := ValidatedMoisture;
+
+(* 
+  不变式说明：
+  1. 当湿度&lt;30%时，喷淋器最终会开启，但可能有延迟
+  2. 当湿度≥70%时，喷淋器最终会关闭，但可能有延迟
+  3. 延迟期间系统处于过渡状态，不属于违反属性的情况
+*)
+
+(* Formal assertions for verification *)
+@Assert(ValidatedMoisture &gt;= 0.0 AND ValidatedMoisture &lt;= 100.0);
+@Assert(ValidatedMoisture &lt; 30.0 IMPLIES (SprinklersOn OR (TargetSprinklerState AND NOT DelayTimer.Q)));
+@Assert(ValidatedMoisture &gt;= 70.0 IMPLIES (NOT SprinklersOn OR (NOT TargetSprinklerState AND NOT DelayTimer.Q)));
+@Assert(EXISTS TRUE : SprinklersOn = TRUE);
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

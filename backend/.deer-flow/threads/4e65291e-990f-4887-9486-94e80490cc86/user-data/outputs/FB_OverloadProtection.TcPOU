@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_OverloadProtection" Id="{5dbc37f1-7011-2a4f-3dab-16602ac0bec0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_OverloadProtection
+VAR_INPUT
+  fCurrentFeedback : REAL; (* 电流反馈值 (A) *)
+  fCurrentLimit : REAL; (* 电流上限值 (A) *)
+  nOverloadDelay : INT; (* 过载保护延时 (ms) *)
+  fOverloadHysteresis : REAL; (* 过载保护回差 (%) *)
+  bReset : BOOL; (* 复位指令 *)
+  bEnable : BOOL; (* 保护使能 *)
+END_VAR
+VAR_OUTPUT
+  bOverloadWarning : BOOL; (* 过载警告输出 *)
+  bOverloadFault : BOOL; (* 过载故障输出 *)
+  fCurrentPercentage : REAL; (* 当前电流百分比 (%) *)
+  eFaultState : E_MotorError; (* 故障状态 *)
+  tTimeToTrip : TIME; (* 剩余脱扣时间 (ms) *)
+END_VAR
+VAR
+  tOverloadTimer : TON; (* 过载延时定时器 *)
+  fTripThreshold : REAL; (* 脱扣阈值电流 *)
+  fResetThreshold : REAL; (* 复位阈值电流 *)
+  bFaultActive : BOOL; (* 故障激活标志 *)
+  fCurrentLimitLast : REAL; (* 上周期电流上限值 *)
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* 计算电流百分比 *)
+IF fCurrentLimit > 0.0 THEN
+  fCurrentPercentage := (fCurrentFeedback / fCurrentLimit) * 100.0;
+ELSE
+  fCurrentPercentage := 0.0;
+END_IF
+
+(* 更新阈值（当参数变化时） *)
+IF fCurrentLimit <> fCurrentLimitLast THEN
+  fTripThreshold := fCurrentLimit;
+  fResetThreshold := fCurrentLimit * (1.0 - fOverloadHysteresis / 100.0);
+  fCurrentLimitLast := fCurrentLimit;
+END_IF
+
+(* 复位处理 *)
+IF bReset THEN
+  bFaultActive := FALSE;
+  bOverloadFault := FALSE;
+  eFaultState := E_MotorError#NO_ERROR;
+  tOverloadTimer(IN := FALSE);
+END_IF
+
+(* 保护使能时才工作 *)
+IF bEnable AND NOT bFaultActive THEN
+  (* 电流超过上限 *)
+  IF fCurrentFeedback > fTripThreshold THEN
+    tOverloadTimer(IN := TRUE, PT := nOverloadDelay);
+
+    (* 过载警告 *)
+    bOverloadWarning := TRUE;
+
+    (* 延时到触发故障 *)
+    IF tOverloadTimer.Q THEN
+      bFaultActive := TRUE;
+      bOverloadFault := TRUE;
+      eFaultState := E_MotorError#OVERLOAD_FAULT;
+    END_IF
+  ELSE
+    (* 电流正常 *)
+    tOverloadTimer(IN := FALSE);
+    bOverloadWarning := FALSE;
+  END_IF
+ELSE
+  (* 保护未使能或已故障 *)
+  tOverloadTimer(IN := FALSE);
+
+  (* 故障复位条件：电流低于复位阈值 *)
+  IF bFaultActive AND fCurrentFeedback < fResetThreshold THEN
+    bOverloadWarning := FALSE;
+  ELSE
+    bOverloadWarning := bFaultActive;
+  END_IF
+END_IF
+
+(* 计算剩余脱扣时间 *)
+IF tOverloadTimer.IN THEN
+  tTimeToTrip := tOverloadTimer.PT - tOverloadTimer.ET;
+ELSE
+  tTimeToTrip := T#0ms;
+END_IF
+
+(* 安全输出 *)
+bOverloadFault := bFaultActive;
+IF bFaultActive THEN
+  eFaultState := E_MotorError#OVERLOAD_FAULT;
+ELSE
+  eFaultState := E_MotorError#NO_ERROR;
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_OverloadProtection">
+      <LineId Id="1" Count="59" />
+    </LineIds>
+</POU>
+</TcPlcObject>

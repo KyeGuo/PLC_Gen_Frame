@@ -1,0 +1,13 @@
+TYPE ST_ClimbingSystemStatus :
+    STRUCT
+        CurrentWeight : REAL;              // 当前用户体重
+        CurrentHeight : REAL;              // 当前墙的高度
+        CurrentRoute : ET_RouteSelector;   // 当前选择的路线
+        CurrentDifficulty : INT;           // 当前难度等级
+        MotorSpeed : REAL;                 // 当前电机速度
+        LightsActive : BOOL;               // 当前照明状态
+        SystemReady : BOOL;                // 系统就绪状态
+        ErrorCode : INT;                   // 当前错误代码
+        ErrorMsg : STRING(80);             // 当前错误消息
+    END_STRUCT;
+END_TYPE

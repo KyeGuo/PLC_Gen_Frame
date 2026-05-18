@@ -1,0 +1,6 @@
+TYPE E_State :
+(
+    STATE_LISTEN := 0,  // 监听状态
+    STATE_PROCESS := 1  // 处理状态
+);
+END_TYPE

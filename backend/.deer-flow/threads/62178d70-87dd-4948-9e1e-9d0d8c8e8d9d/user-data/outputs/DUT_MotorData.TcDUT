@@ -1,0 +1,12 @@
+TYPE DUT_MotorData :
+STRUCT
+    nCurrentSpeed : INT; // 当前转速
+    nTargetSpeed : INT; // 目标转速
+    nCurrentCurrent : REAL; // 当前电流
+    fOverloadThreshold : REAL; // 过载阈值
+    nOverloadDelay : INT; // 过载延时（ms）
+    eState : E_MotorState; // 电机状态
+    eErrorCode : E_ErrorCode; // 错误码
+    bIsRunning : BOOL; // 是否运行
+END_STRUCT
+END_TYPE

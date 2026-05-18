@@ -1,0 +1,7 @@
+TYPE PedestrianLightState :
+    (
+        NORMAL,          // 正常状态：汽车绿灯，计数器0
+        REQUEST_ACCEPTED,// 请求受理：汽车红灯，计数器递增
+        PEDESTRIAN_GREEN // 行人过街：行人绿灯，计数器递增
+    );
+END_TYPE

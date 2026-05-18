@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<VerificationConfiguration>
+  <POU Name="FB_SmoothieController">
+    <Properties>
+      <!-- 属性1: 验证所有断言 -->
+      <Property>
+        <Id>prop-assertions</Id>
+        <Description>Verify that all assertions are satisfied in the program.</Description>
+        <Type>assertion</Type>
+      </Property>
+      
+      <!-- 属性2: 食谱1所有原料可用时启动电机和分配器 -->
+      <Property>
+        <Id>prop-recipe1-active</Id>
+        <Description>Ensure that the blender motor and dispenser are activated when all required ingredients for recipe 1 are available.</Description>
+        <Type>pattern</Type>
+        <Pattern>pattern-implication</Pattern>
+        <Params>
+          <Param Index="0">instance.CustomerPreference = 1 AND instance.BananaAvailable = TRUE AND instance.BerryMixAvailable = TRUE AND instance.YogurtAvailable = TRUE</Param>
+          <Param Index="1">instance.BlenderMotor = TRUE AND instance.Dispenser = TRUE</Param>
+        </Params>
+      </Property>
+      
+      <!-- 属性3: 食谱2所有原料可用时启动电机和分配器 -->
+      <Property>
+        <Id>prop-recipe2-active</Id>
+        <Description>Ensure that the blender motor and dispenser are activated when all required ingredients for recipe 2 are available.</Description>
+        <Type>pattern</Type>
+        <Pattern>pattern-implication</Pattern>
+        <Params>
+          <Param Index="0">instance.CustomerPreference = 2 AND instance.BerryMixAvailable = TRUE AND instance.SpinachAvailable = TRUE AND instance.YogurtAvailable = TRUE</Param>
+          <Param Index="1">instance.BlenderMotor = TRUE AND instance.Dispenser = TRUE</Param>
+        </Params>
+      </Property>
+      
+      <!-- 属性4: 食谱3所有原料可用时启动电机和分配器 -->
+      <Property>
+        <Id>prop-recipe3-active</Id>
+        <Description>Ensure that the blender motor and dispenser are activated when all required ingredients for recipe 3 are available.</Description>
+        <Type>pattern</Type>
+        <Pattern>pattern-implication</Pattern>
+        <Params>
+          <Param Index="0">instance.CustomerPreference = 3 AND instance.BananaAvailable = TRUE AND instance.SpinachAvailable = TRUE AND instance.YogurtAvailable = TRUE</Param>
+          <Param Index="1">instance.BlenderMotor = TRUE AND instance.Dispenser = TRUE</Param>
+        </Params>
+      </Property>
+      
+      <!-- 属性5: 无效食谱时关闭电机和分配器 -->
+      <Property>
+        <Id>prop-invalid-recipe-inactive</Id>
+        <Description>Ensure that the blender motor and dispenser are deactivated when an invalid recipe is selected.</Description>
+        <Type>pattern</Type>
+        <Pattern>pattern-implication</Pattern>
+        <Params>
+          <Param Index="0">instance.CustomerPreference &lt; 1 OR instance.CustomerPreference &gt; 3</Param>
+          <Param Index="1">instance.BlenderMotor = FALSE AND instance.Dispenser = FALSE</Param>
+        </Params>
+      </Property>
+      
+      <!-- 属性6: 缺少原料时关闭电机和分配器 -->
+      <Property>
+        <Id>prop-missing-ingredients-inactive</Id>
+        <Description>Ensure that the blender motor and dispenser are deactivated when required ingredients for the selected recipe are unavailable.</Description>
+        <Type>pattern</Type>
+        <Pattern>pattern-implication</Pattern>
+        <Params>
+          <Param Index="0">(instance.CustomerPreference = 1 AND (NOT instance.BananaAvailable OR NOT instance.BerryMixAvailable OR NOT instance.YogurtAvailable)) OR (instance.CustomerPreference = 2 AND (NOT instance.BerryMixAvailable OR NOT instance.SpinachAvailable OR NOT instance.YogurtAvailable)) OR (instance.CustomerPreference = 3 AND (NOT instance.BananaAvailable OR NOT instance.SpinachAvailable OR NOT instance.YogurtAvailable))</Param>
+          <Param Index="1">instance.BlenderMotor = FALSE AND instance.Dispenser = FALSE</Param>
+        </Params>
+      </Property>
+    </Properties>
+  </POU>
+</VerificationConfiguration>

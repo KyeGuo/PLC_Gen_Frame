@@ -1,0 +1,36 @@
+FUNCTION_BLOCK FB_WindTurbineControl
+VAR_INPUT
+    WindSpeedSensor: REAL; // 风速传感器输入 (m/s)
+    GeneratorSpeedSensor: REAL; // 发电机转速传感器输入 (RPM)
+END_VAR
+VAR_OUTPUT
+    BladePitch: INT; // 叶片桨距输出 (度)
+    GeneratorSpeed: REAL; // 发电机转速设定值 (RPM)
+END_VAR
+VAR
+    WindSpeedCategory: INT; // 风速类别: 0-低风速, 1-中等风速, 2-高风速
+END_VAR
+
+// 风速类别判断
+IF WindSpeedSensor <= 3.0 THEN
+    WindSpeedCategory := 0; // 低风速
+ELSIF WindSpeedSensor > 3.0 AND WindSpeedSensor <= 5.0 THEN
+    WindSpeedCategory := 1; // 中等风速
+ELSE
+    WindSpeedCategory := 2; // 高风速
+END_IF;
+
+// 根据风速类别设置输出
+CASE WindSpeedCategory OF
+    0: // 低风速
+        BladePitch := -5;
+        GeneratorSpeed := 500.0;
+    1: // 中等风速
+        BladePitch := 0;
+        GeneratorSpeed := 800.0;
+    2: // 高风速
+        BladePitch := 5;
+        GeneratorSpeed := 1000.0;
+END_CASE;
+
+END_FUNCTION_BLOCK

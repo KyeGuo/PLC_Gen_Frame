@@ -1,0 +1,26 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{E1F2A3B4-C5D6-E7F8-A9B0-C1D2E3F4A5B6}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AssemblyName>SmoothieController</AssemblyName>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <RootNamespace>SmoothieController</RootNamespace>
+    <TwinCATVersion>4.2.0.19</TwinCATVersion>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <TcPOU Include="FB_SmoothieController.TcPOU" />
+    <TcPOU Include="FC_RecipeSelector.TcPOU" />
+    <TcPOU Include="FB_IngredientChecker.TcPOU" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Reference Include="TwinCAT.Ads" />
+    <Reference Include="TwinCAT.Base" />
+    <Reference Include="TwinCAT.Plc" />
+    <Reference Include="TwinCAT.Plc.TypeSystem" />
+  </ItemGroup>
+  
+  <Import Project="$(MSBuildExtensionsPath)\Beckhoff\TwinCAT\TwinCAT.Plc.targets" />
+</Project>

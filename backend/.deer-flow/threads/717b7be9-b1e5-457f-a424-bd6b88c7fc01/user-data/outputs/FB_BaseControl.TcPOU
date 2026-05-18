@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_BaseControl" Id="{550e8400-e29b-41d4-a716-446655440000}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_BaseControl ABSTRACT
+VAR_INPUT
+  bEnable : BOOL; // 功能块使能
+  bReset : BOOL; // 复位信号
+END_VAR
+VAR_OUTPUT
+  bActive : BOOL; // 功能块激活状态
+  eState : E_BaseState; // 当前状态
+  dwErrorFlags : DWORD; // 错误标志位
+END_VAR
+VAR
+  tLastUpdate : TIME; // 最后更新时间
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 基础控制功能块
+// 提供通用的状态管理和错误处理框架
+
+METHOD ABSTRACT Execute : BOOL
+// 执行方法，由派生类实现
+END_METHOD
+
+METHOD Reset : BOOL
+// 复位方法
+  bActive := FALSE;
+  eState := E_BaseState#STOPPED;
+  dwErrorFlags := 0;
+  tLastUpdate := TONOW();
+  Reset := TRUE;
+END_METHOD
+
+METHOD PROTECTED UpdateState : BOOL
+// 更新状态
+  tLastUpdate := TONOW();
+  UpdateState := TRUE;
+END_METHOD
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_BaseControl">
+      <LineId Id="1" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

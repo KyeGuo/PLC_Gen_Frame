@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_RampGenerator" Id="{550e8400-e29b-41d4-a716-446655440007}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RampGenerator
+VAR_INPUT
+  bEnable : BOOL := TRUE; // 使能信号
+END_VAR
+VAR_OUTPUT
+  fOutput : REAL; // 输出值
+END_VAR
+VAR
+  fStartValue : REAL; // 起始值
+  fTargetValue : REAL; // 目标值
+  fRampTime : REAL; // 斜坡时间(秒)
+  fRampRate : REAL; // 斜坡速率
+  tStartTime : TIME; // 开始时间
+  bRampActive : BOOL; // 斜坡激活标志
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 斜坡生成器功能块
+// 实现平滑的斜坡变化
+METHOD Init : BOOL
+VAR_INPUT
+  fStart : REAL; // 起始值
+  fTarget : REAL; // 目标值
+  fTime : REAL; // 斜坡时间(秒)
+END_VAR
+  fStartValue := fStart;
+  fTargetValue := fTarget;
+  fRampTime := fTime;
+  tStartTime := TONOW();
+  
+  // 计算斜坡速率
+  IF fTime > 0.0 THEN
+    fRampRate := ABS(fTarget - fStart) / fTime;
+  ELSE
+    fRampRate := 100.0; // 默认最大速率
+  END_IF;
+  
+  bRampActive := TRUE;
+  fOutput := fStart;
+  
+  Init := TRUE;
+END_METHOD
+
+METHOD Execute : REAL
+VAR
+  tElapsed : TIME;
+  fElapsedSeconds : REAL;
+  fDelta : REAL;
+END_VAR
+  
+  IF NOT bEnable OR NOT bRampActive THEN
+    Execute := fOutput;
+    RETURN;
+  END_IF;
+  
+  // 计算已过去时间
+  tElapsed := TONOW() - tStartTime;
+  fElapsedSeconds := TIME_TO_REAL(tElapsed) / 1000.0;
+  
+  // 计算当前值
+  IF fElapsedSeconds >= fRampTime THEN
+    // 斜坡完成
+    fOutput := fTargetValue;
+    bRampActive := FALSE;
+  ELSE
+    // 计算当前值
+    fDelta := fRampRate * fElapsedSeconds;
+    
+    IF fTargetValue > fStartValue THEN
+      fOutput := fStartValue + fDelta;
+      IF fOutput > fTargetValue THEN
+        fOutput := fTargetValue;
+      END_IF;
+    ELSE
+      fOutput := fStartValue - fDelta;
+      IF fOutput < fTargetValue THEN
+        fOutput := fTargetValue;
+      END_IF;
+    END_IF;
+  END_IF;
+  
+  Execute := fOutput;
+END_METHOD
+
+METHOD Stop : BOOL
+  bRampActive := FALSE;
+  Stop := TRUE;
+END_METHOD
+
+METHOD IsComplete : BOOL
+  IsComplete := NOT bRampActive;
+END_METHOD
+]]></ST>
+    </Implementation>
+    <LineIds Name="FB_RampGenerator">
+      <LineId Id="1" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

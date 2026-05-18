@@ -1,0 +1,90 @@
+FUNCTION_BLOCK FB_PedestrianTrafficLight
+VAR_INPUT
+    pedBtnPress : BOOL;          // 行人按钮输入
+END_VAR
+VAR_OUTPUT
+    carLightIsGreen : BOOL;      // 汽车绿灯状态输出
+    pedLightIsGreen : BOOL;      // 行人绿灯状态输出
+    TimeCounter : INT;           // 时间计数器输出
+END_VAR
+VAR
+    buttonPressedBefore : BOOL := FALSE;  // 按钮按下历史记录
+    currentState : PedestrianLightState := PedestrianLightState.NORMAL;  // 当前状态
+    btnRisingEdge : BOOL;  // 按钮上升沿标志
+END_VAR
+VAR_INTERNAL
+    // 状态枚举定义
+    TYPE PedestrianLightState :
+        (
+            NORMAL,          // 正常状态：汽车绿灯，计数器0
+            REQUEST_ACCEPTED,// 请求受理：汽车红灯，计数器递增
+            PEDESTRIAN_GREEN // 行人过街：行人绿灯，计数器递增
+        );
+    END_TYPE
+END_VAR
+
+// 检测按钮上升沿
+btnRisingEdge := pedBtnPress AND NOT buttonPressedBefore;
+
+// 状态机逻辑
+CASE currentState OF
+    PedestrianLightState.NORMAL:
+        // 正常状态输出
+        carLightIsGreen := TRUE;
+        pedLightIsGreen := FALSE;
+        TimeCounter := 0;
+        
+        // 检测有效按钮按下
+        IF btnRisingEdge THEN
+            currentState := PedestrianLightState.REQUEST_ACCEPTED;
+            TimeCounter := 1;  // 立即开始计数
+        END_IF
+        
+    PedestrianLightState.REQUEST_ACCEPTED:
+        // 请求受理状态输出
+        carLightIsGreen := FALSE;
+        pedLightIsGreen := FALSE;
+        
+        // 先检查状态转换条件
+        IF TimeCounter >= 9 THEN
+            currentState := PedestrianLightState.PEDESTRIAN_GREEN;
+        END_IF
+        
+        // 计数器递增
+        TimeCounter := TimeCounter + 1;
+        
+        // 防止计数器溢出
+        IF TimeCounter > 50 THEN
+            TimeCounter := 50;
+        END_IF
+        
+    PedestrianLightState.PEDESTRIAN_GREEN:
+        // 计数器错误处理，确保在有效范围内
+        IF TimeCounter < 0 THEN
+            TimeCounter := 0;
+        ELSIF TimeCounter > 50 THEN
+            TimeCounter := 50;
+        END_IF;
+        
+        // 行人过街状态输出
+        carLightIsGreen := FALSE;
+        pedLightIsGreen := (TimeCounter >= 10) AND (TimeCounter < 40);
+        
+        // 转换回正常状态
+        IF TimeCounter >= 50 THEN
+            currentState := PedestrianLightState.NORMAL;
+            TimeCounter := 0;  // 重置计数器
+        ELSE
+            // 计数器递增
+            TimeCounter := TimeCounter + 1;
+        END_IF
+        
+        // 防止计数器溢出
+        IF TimeCounter > 50 THEN
+            TimeCounter := 50;
+        END_IF
+END_CASE;
+
+// 更新按钮历史记录
+buttonPressedBefore := pedBtnPress;
+END_FUNCTION_BLOCK

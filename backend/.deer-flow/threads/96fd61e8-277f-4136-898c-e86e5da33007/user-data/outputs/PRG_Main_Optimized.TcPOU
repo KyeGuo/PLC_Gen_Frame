@@ -1,0 +1,134 @@
+PROGRAM PRG_Main
+VAR_GLOBAL
+    (* IO变量定义 - 实际项目中需根据硬件配置地址 *)
+    StartButton : BOOL AT %I*;      (* 启动按钮 - 输入 *)
+    StopButton : BOOL AT %I*;       (* 停止按钮 - 输入 *)
+    SpeedPotentiometer : REAL AT %IW*;  (* 速度电位器 - 输入 *)
+    CurrentSensor : REAL AT %IW*;   (* 电流传感器 - 输入 *)
+    
+    (* 输出变量 *)
+    RunIndicator : BOOL AT %Q*;     (* 运行指示灯 - 输出 *)
+    FaultIndicator : BOOL AT %Q*;   (* 故障指示灯 - 输出 *)
+    ActualSpeedOutput : REAL AT %QW*;  (* 实际速度输出 - 输出 *)
+END_VAR
+VAR_GLOBAL
+    (* 全局诊断变量 - 可用于HMI监控 *)
+    DiagnosticData : ST_DiagnosticData;  (* 诊断信息结构体 *)
+END_VAR
+VAR
+    (* FB实例声明 *)
+    MotorCtrl : FB_MotorControl;
+    OverloadProt : FB_OverloadProtection;
+    
+    (* 内部变量 *)
+    MotorData : DUT_MotorData;
+    OverloadDetected : BOOL;
+    FaultCode : E_ErrorCode;
+    LastFaultCode : E_ErrorCode := E_ErrorCode#NO_ERROR;
+    
+    (* 运行时间统计定时器 *)
+    RuntimeTimer : TON;
+    CurrentRuntime : TIME;
+    
+    (* 故障记录变量 *)
+    FaultRecordCount : DINT := 0;
+END_VAR
+
+(* 诊断信息初始化 *)
+IF NOT DiagnosticData.Initialized THEN
+    DiagnosticData.TotalRunningTime := T#0MS;
+    DiagnosticData.TotalStartCount := 0;
+    DiagnosticData.TotalFaultCount := 0;
+    DiagnosticData.Initialized := TRUE;
+END_IF;
+
+(* 调用过载保护模块 *)
+OverloadProt(
+    MotorCurrent := CurrentSensor,
+    OverloadThreshold := 10.0,
+    OverloadDelay := T#2000MS,
+    HysteresisCoeff := 0.9,
+    OverloadDetected => OverloadDetected,
+    FaultCode => FaultCode
+);
+
+(* 调用电机控制模块 - 过载时强制停止 *)
+MotorCtrl(
+    Start := StartButton,
+    Stop := StopButton OR OverloadDetected,
+    TargetSpeed := SpeedPotentiometer,
+    MaxSpeed := 3000.0,
+    MinSpeed := 0.0,
+    RampTime := T#1500MS,
+    MotorData => MotorData
+);
+
+(* 状态同步：过载时更新电机故障状态 *)
+IF OverloadDetected THEN
+    MotorData.State := E_MotorState#FAULT;
+    MotorData.ErrorCode := E_ErrorCode#OVERLOAD;
+END_IF;
+
+(* 运行时间统计 - 每1秒更新一次 *)
+RuntimeTimer(IN := (MotorData.State = E_MotorState#RUNNING), PT := T#1000MS);
+IF RuntimeTimer.Q THEN
+    DiagnosticData.TotalRunningTime := DiagnosticData.TotalRunningTime + T#1000MS;
+    RuntimeTimer(IN := FALSE);  (* 复位定时器 *)
+    RuntimeTimer(IN := TRUE);
+END_IF;
+
+(* 启动次数统计 - 上升沿检测 *)
+IF StartButton AND NOT DiagnosticData.LastStartState THEN
+    DiagnosticData.TotalStartCount := DiagnosticData.TotalStartCount + 1;
+END_IF;
+DiagnosticData.LastStartState := StartButton;
+
+(* 故障记录和统计 *)
+IF MotorData.ErrorCode <> E_ErrorCode#NO_ERROR AND MotorData.ErrorCode <> LastFaultCode THEN
+    DiagnosticData.TotalFaultCount := DiagnosticData.TotalFaultCount + 1;
+    DiagnosticData.LastFaultCode := MotorData.ErrorCode;
+    DiagnosticData.LastFaultTime := TOD_TO_DT(TIME_OF_DAY());  (* 记录故障发生时间 *)
+    
+    (* 详细故障记录 *)
+    CASE MotorData.ErrorCode OF
+        E_ErrorCode#OVERLOAD:
+            DiagnosticData.LastFaultDescription := '电机过载保护触发 (电流: ' + REAL_TO_STRING(CurrentSensor) + 'A)';
+        E_ErrorCode#SPEED_OUT_OF_RANGE:
+            DiagnosticData.LastFaultDescription := '速度超出允许范围 (设定值: ' + REAL_TO_STRING(SpeedPotentiometer) + 'RPM)';
+        E_ErrorCode#FAULT_RESET_REQUIRED:
+            DiagnosticData.LastFaultDescription := '故障需要手动复位';
+    END_CASE;
+END_IF;
+LastFaultCode := MotorData.ErrorCode;
+
+(* 更新输出变量 *)
+RunIndicator := (MotorData.State = E_MotorState#RUNNING) OR (MotorData.State = E_MotorState#STARTING);
+FaultIndicator := (MotorData.State = E_MotorState#FAULT) OR OverloadDetected;
+ActualSpeedOutput := MotorData.CurrentSpeed;
+
+(* 更新诊断信息 *)
+DiagnosticData.CurrentMotorState := MotorData.State;
+DiagnosticData.CurrentSpeed := MotorData.CurrentSpeed;
+DiagnosticData.TargetSpeed := MotorData.TargetSpeed;
+DiagnosticData.CurrentMotorCurrent := CurrentSensor;
+DiagnosticData.OverloadActive := OverloadDetected;
+END_PROGRAM
+
+(* 诊断信息结构体定义 *)
+TYPE ST_DiagnosticData :
+STRUCT
+    Initialized : BOOL;
+    TotalRunningTime : TIME;
+    TotalStartCount : DINT;
+    TotalFaultCount : DINT;
+    CurrentMotorState : E_MotorState;
+    CurrentSpeed : REAL;
+    TargetSpeed : REAL;
+    CurrentMotorCurrent : REAL;
+    OverloadActive : BOOL;
+    LastFaultCode : E_ErrorCode;
+    LastFaultTime : DT;
+    LastFaultDescription : STRING(128);
+    LastStartState : BOOL;
+END_STRUCT
+END_TYPE

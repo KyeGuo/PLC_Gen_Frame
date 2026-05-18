@@ -1,0 +1,7 @@
+TYPE MoistureState :
+(
+    Dry,        (* 湿度 < 30% *)
+    Normal,     (* 30% ≤ 湿度 < 70% *)
+    Wet         (* 湿度 ≥ 70% *)
+);
+END_TYPE

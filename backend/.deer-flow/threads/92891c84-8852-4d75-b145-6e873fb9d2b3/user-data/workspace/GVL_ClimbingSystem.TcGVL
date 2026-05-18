@@ -1,0 +1,22 @@
+GVL_ClimbingSystem
+VAR_GLOBAL
+    // 系统状态变量
+    WallDifficultyLevel : INT := 1;  // 默认难度等级为1
+    
+    // 系统配置参数 - 可通过HMI修改
+    MIN_WEIGHT_FOR_FULL_SPEED : REAL := 60.0;  // 满速体重阈值
+    MIN_HEIGHT_FOR_LIGHTS : REAL := 5.0;       // 开灯高度阈值
+    MAX_USER_WEIGHT : REAL := 200.0;           // 最大允许体重
+    
+    // 路线难度映射 - 可配置
+    ROUTE1_DIFFICULTY : INT := 1;
+    ROUTE2_DIFFICULTY : INT := 2;
+    ROUTE3_DIFFICULTY : INT := 3;
+    
+    // 系统状态监控
+    SystemReady : BOOL := FALSE;       // 系统就绪状态
+    CurrentMotorSpeed : REAL := 0.0;   // 当前电机速度
+    LightsStatus : BOOL := FALSE;      // 当前照明状态
+    LastError : INT := 0;              // 最后错误代码
+    LastErrorMsg : STRING(80) := '';   // 最后错误消息
+END_VAR

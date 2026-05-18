@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_MotorState" Id="{5f4dcc3b-520f-4770-90f0-61f26cf592c6}">
+    <Declaration><![CDATA[TYPE E_MotorState :
+(
+  STOPPED := 0,
+  STARTING := 1,
+  RUNNING := 2,
+  STOPPING := 3,
+  FAULT := 4
+) DINT;
+END_TYPE
+(*
+枚举类型说明:
+- STOPPED: 电机停止状态
+- STARTING: 电机启动过程中
+- RUNNING: 电机正常运行
+- STOPPING: 电机停止过程中
+- FAULT: 电机故障状态
+*)
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

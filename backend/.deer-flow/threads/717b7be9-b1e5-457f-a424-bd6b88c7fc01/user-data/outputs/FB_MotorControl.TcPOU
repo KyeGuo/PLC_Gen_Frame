@@ -1,0 +1,465 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_MotorControl" Id="{550e8400-e29b-41d4-a716-446655440006}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MotorControl EXTENDS FB_BaseControl
+VAR_INPUT
+  bStart : BOOL; // 启动信号
+  bStop : BOOL; // 停止信号
+  bReverse : BOOL; // 反转信号
+  fTargetSpeed : REAL; // 目标速度(0-100%)
+  fRampTime : REAL; // 斜坡时间(秒)
+  fOvercurrentThreshold : REAL; // 过流阈值
+  fOvertemperatureThreshold : REAL; // 过热阈值
+  fOverloadThreshold : REAL; // 过载阈值
+  tOverloadDelay : TIME; // 过载延迟时间
+END_VAR
+VAR_OUTPUT
+  eMotorState : E_MotorState; // 电机状态
+  fActualSpeed : REAL; // 实际速度(0-100%)
+  bMotorOutput : BOOL; // 电机输出使能
+  bReverseOutput : BOOL; // 反转输出
+  stDiagnostics : ST_MotorDiagnostics; // 诊断数据
+END_VAR
+VAR
+  fbSpeedRamp : FB_RampGenerator; // 速度斜坡生成器
+  tMotorStartTime : TIME; // 电机启动时间
+  fCurrentSetpoint : REAL; // 当前速度设定值
+  bStopRequested : BOOL; // 停止请求标志
+  bReverseRequested : BOOL; // 反转请求标志
+  // 保护功能变量
+  fbOvercurrentTimer: TON; // 过流检测定时器
+  fbOvertemperatureTimer: TON; // 过热检测定时器
+  fbOverloadTimer: TON; // 过载检测定时器
+  fbShortCircuitTimer: TON; // 短路检测定时器
+  bOvercurrentFault: BOOL; // 过流故障标志
+  bOvertemperatureFault: BOOL; // 过热故障标志
+  bOverloadFault: BOOL; // 过载故障标志
+  bShortCircuitFault: BOOL; // 短路故障标志
+  fCurrentPeak: REAL; // 电流峰值
+  tLastFaultTime: TIME; // 最后故障时间
+  // 性能优化变量
+  bStateChanged : BOOL; // 状态变化标志
+  fSpeedDifference : REAL; // 速度差值
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 电机控制功能块
+// 继承自FB_BaseControl，实现完整的电机控制逻辑
+METHOD OVERRIDE Execute : BOOL
+VAR
+  fRampStep : REAL;
+  tCycleTime : TIME;
+END_VAR
+  // 调用基类更新状态
+  UpdateState();
+  
+  // 处理复位
+  IF bReset THEN
+    Reset();
+    Execute := TRUE;
+    RETURN;
+  END_IF;
+  
+  // 使能检查
+  IF NOT bEnable THEN
+    eMotorState := E_MotorState#STOPPED;
+    bMotorOutput := FALSE;
+    Execute := FALSE;
+    RETURN;
+  END_IF;
+  
+  // 快速故障检查 - 短路故障优先级最高
+  CheckShortCircuitProtection();
+  IF stDiagnostics.eCurrentFaultType <> E_FaultType#NO_FAULT THEN
+    eMotorState := E_MotorState#FAULT;
+    bMotorOutput := FALSE;
+    bReverseOutput := FALSE;
+    Execute := TRUE;
+    RETURN;
+  END_IF;
+  
+  // 保护功能检查
+  CheckProtectionFunctions();
+  
+  // 如果有故障，进入故障状态
+  IF stDiagnostics.eCurrentFaultType <> E_FaultType#NO_FAULT THEN
+    eMotorState := E_MotorState#FAULT;
+    bMotorOutput := FALSE;
+    bReverseOutput := FALSE;
+    Execute := TRUE;
+    RETURN;
+  END_IF;
+  
+  // 状态机处理 - 使用变量缓存减少重复读取
+  bStateChanged := FALSE;
+  
+  CASE eMotorState OF
+    E_MotorState#STOPPED:
+      bStateChanged := HandleStoppedState();
+    
+    E_MotorState#STARTING:
+      bStateChanged := HandleStartingState();
+    
+    E_MotorState#RUNNING:
+      bStateChanged := HandleRunningState();
+    
+    E_MotorState#STOPPING:
+      bStateChanged := HandleStoppingState();
+    
+    E_MotorState#FAULT:
+      bStateChanged := HandleFaultState();
+    
+    E_MotorState#OVERLOAD_WARNING:
+      bStateChanged := HandleOverloadWarningState();
+  END_CASE;
+  
+  // 仅在状态变化或需要时更新诊断数据
+  IF bStateChanged OR (eMotorState = E_MotorState#RUNNING AND (TONOW() - tLastUpdate) >= T#100MS) THEN
+    UpdateDiagnostics();
+  END_IF;
+  
+  Execute := TRUE;
+END_METHOD
+
+METHOD PROTECTED HandleStoppedState : BOOL
+  IF bStart AND NOT bStop THEN
+    // 启动电机
+    eMotorState := E_MotorState#STARTING;
+    tMotorStartTime := TONOW();
+    stDiagnostics.nStartCount := stDiagnostics.nStartCount + 1;
+    stDiagnostics.tLastStartTime := TONOW();
+    
+    // 初始化斜坡生成器
+    fbSpeedRamp.Init(fActualSpeed, fTargetSpeed, fRampTime);
+    bReverseRequested := bReverse;
+    HandleStoppedState := TRUE;
+  END_IF;
+  
+  bMotorOutput := FALSE;
+  bReverseOutput := FALSE;
+  HandleStoppedState := TRUE;
+END_METHOD
+
+METHOD PROTECTED HandleStartingState : BOOL
+VAR
+  fNewSpeed : REAL;
+END_VAR
+  // 斜坡加速
+  fNewSpeed := fbSpeedRamp.Execute();
+  fActualSpeed := fNewSpeed;
+  
+  // 检查是否达到目标速度 - 使用预计算的差值阈值
+  fSpeedDifference := ABS(fNewSpeed - fTargetSpeed);
+  IF fSpeedDifference < 0.01 THEN
+    fActualSpeed := fTargetSpeed;
+    eMotorState := E_MotorState#RUNNING;
+  END_IF;
+  
+  bMotorOutput := TRUE;
+  bReverseOutput := bReverseRequested;
+  HandleStartingState := TRUE;
+END_METHOD
+
+METHOD PROTECTED HandleRunningState : BOOL
+VAR
+  fNewSpeed : REAL;
+END_VAR
+  // 快速停止检查
+  IF bStop THEN
+    eMotorState := E_MotorState#STOPPING;
+    fbSpeedRamp.Init(fActualSpeed, 0.0, fRampTime / 2); // 快速停止
+    bStopRequested := TRUE;
+    HandleRunningState := TRUE;
+    RETURN;
+  END_IF;
+  
+  // 快速反转检查
+  IF bReverse <> bReverseRequested THEN
+    // 先停止再反转
+    eMotorState := E_MotorState#STOPPING;
+    fbSpeedRamp.Init(fActualSpeed, 0.0, fRampTime / 2);
+    bReverseRequested := bReverse;
+    bStopRequested := TRUE;
+    HandleRunningState := TRUE;
+    RETURN;
+  END_IF;
+  
+  // 速度调节 - 仅当差异超过阈值时更新
+  fSpeedDifference := ABS(fTargetSpeed - fActualSpeed);
+  IF fSpeedDifference > 0.01 THEN
+    fbSpeedRamp.Init(fActualSpeed, fTargetSpeed, fRampTime);
+    fActualSpeed := fbSpeedRamp.Execute();
+  END_IF;
+  
+  bMotorOutput := TRUE;
+  bReverseOutput := bReverseRequested;
+  HandleRunningState := TRUE;
+END_METHOD
+
+METHOD PROTECTED HandleStoppingState : BOOL
+VAR
+  fNewSpeed : REAL;
+END_VAR
+  // 斜坡减速
+  fNewSpeed := fbSpeedRamp.Execute();
+  fActualSpeed := fNewSpeed;
+  
+  // 检查是否停止
+  IF fNewSpeed <= 0.01 THEN
+    fActualSpeed := 0.0;
+    bMotorOutput := FALSE;
+    bReverseOutput := FALSE;
+    
+    IF bStopRequested THEN
+      eMotorState := E_MotorState#STOPPED;
+      bStopRequested := FALSE;
+    ELSE
+    // 历史记录已满，循环覆盖最旧的记录
+    FOR i := 0 TO 8 DO
+      stDiagnostics.arrFaultHistory[i] := stDiagnostics.arrFaultHistory[i+1];
+    END_FOR;
+    stDiagnostics.arrFaultHistory[9].nFaultCode := nFaultCode;
+    stDiagnostics.arrFaultHistory[9].eFaultType := eFaultType;
+    stDiagnostics.arrFaultHistory[9].tFaultTime := TONOW();
+    stDiagnostics.arrFaultHistory[9].bActive := TRUE;
+    stDiagnostics.arrFaultHistory[9].sDescription := sDescription;
+  END_IF;
+  
+  // 设置错误标志位
+  CASE eFaultType OF
+    E_FaultType#OVERCURRENT:
+      dwErrorFlags := dwErrorFlags OR 16#0001;
+    E_FaultType#OVERTEMPERATURE:
+      dwErrorFlags := dwErrorFlags OR 16#0002;
+    E_FaultType#OVERLOAD:
+      dwErrorFlags := dwErrorFlags OR 16#0004;
+    E_FaultType#SHORT_CIRCUIT:
+      dwErrorFlags := dwErrorFlags OR 16#0008;
+  END_CASE;
+  
+  RecordFault := TRUE;
+END_METHOD  // 反转请求，重新启动
+      eMotorState := E_MotorState#STARTING;
+      fbSpeedRamp.Init(0.0, fTargetSpeed, fRampTime);
+    END_IF;
+  END_IF;
+  
+  HandleStoppingState := TRUE;
+END_METHOD
+
+METHOD PROTECTED HandleFaultState : BOOL
+  // 故障状态下仅响应复位
+  bMotorOutput := FALSE;
+  bReverseOutput := FALSE;
+  
+  IF bReset THEN
+    Reset();
+  END_IF;
+  
+  HandleFaultState := TRUE;
+END_METHOD
+
+METHOD PROTECTED HandleOverloadWarningState : BOOL
+  // 过载预警状态
+  // 继续运行但密切监控
+  HandleRunningState();
+  
+  // 可以在这里添加额外的预警逻辑
+  HandleOverloadWarningState := TRUE;
+END_METHOD
+
+METHOD OVERRIDE Reset : BOOL
+  SUPER^.Reset();
+  
+  eMotorState := E_MotorState#STOPPED;
+  fActualSpeed := 0.0;
+  bMotorOutput := FALSE;
+  bReverseOutput := FALSE;
+  bStopRequested := FALSE;
+  bReverseRequested := FALSE;
+  
+  // 复位诊断数据
+  stDiagnostics.nCurrentFaultCode := 0;
+  stDiagnostics.eCurrentFaultType := E_FaultType#NO_FAULT;
+  
+  // 初始化斜坡生成器
+  fbSpeedRamp.Init(0.0, 0.0, 1.0);
+  
+  Reset := TRUE;
+END_METHOD
+
+METHOD PROTECTED UpdateDiagnostics : BOOL
+VAR
+  tCurrentTime : TIME;
+  tElapsed : TIME;
+BEGIN
+  // 更新运行时间 - 仅在运行状态
+  IF eMotorState = E_MotorState#RUNNING THEN
+    tCurrentTime := TONOW();
+    tElapsed := tCurrentTime - tLastUpdate;
+    stDiagnostics.tTotalRunTime := stDiagnostics.tTotalRunTime + tElapsed;
+  END_IF;
+  
+  // 更新当前状态
+  stDiagnostics.fCurrentSpeed := fActualSpeed;
+  
+  // 限制电流和温度值的范围(使用快速比较)
+  stDiagnostics.fCurrentCurrent := MAX(0.0, stDiagnostics.fCurrentCurrent);
+  stDiagnostics.fCurrentTemperature := MAX(0.0, stDiagnostics.fCurrentTemperature);
+  
+  // 仅当有新故障时更新故障历史状态
+  IF stDiagnostics.nCurrentFaultCode <> 0 THEN
+    UpdateFaultHistoryStatus();
+  END_IF;
+  
+  UpdateDiagnostics := TRUE;
+END_METHOD
+
+METHOD PROTECTED UpdateFaultHistoryStatus : BOOL
+VAR
+  i : UINT;
+BEGIN
+  // 更新故障历史记录的活跃状态
+  FOR i := 0 TO 9 DO
+    IF stDiagnostics.arrFaultHistory[i].nFaultCode <> 0 THEN
+      // 故障是否为当前活跃故障
+      stDiagnostics.arrFaultHistory[i].bActive := 
+        (stDiagnostics.arrFaultHistory[i].nFaultCode = stDiagnostics.nCurrentFaultCode) AND
+        (stDiagnostics.arrFaultHistory[i].eFaultType = stDiagnostics.eCurrentFaultType);
+    END_IF;
+  END_FOR;
+  
+  UpdateFaultHistoryStatus := TRUE;
+END_METHOD
+
+METHOD PROTECTED CheckProtectionFunctions : BOOL
+  // 并行执行保护检查(优化后顺序)
+  CheckOvercurrentProtection();
+  CheckOvertemperatureProtection();
+  CheckOverloadProtection();
+  
+  CheckProtectionFunctions := TRUE;
+END_METHOD
+
+METHOD PROTECTED CheckOvercurrentProtection : BOOL
+VAR
+  bFaultDetected : BOOL;
+BEGIN
+  // 过流保护检测 - 快速比较
+  bFaultDetected := (stDiagnostics.fCurrentCurrent > fOvercurrentThreshold) AND (fActualSpeed > 0.1);
+  
+  // 使用定时器实现故障确认，避免误触发
+  fbOvercurrentTimer(IN := bFaultDetected, PT := T#100MS);
+  
+  IF fbOvercurrentTimer.Q THEN
+    IF NOT bOvercurrentFault THEN
+      RecordFault(E_FaultType#OVERCURRENT, 101, '过流故障');
+      bOvercurrentFault := TRUE;
+    END_IF;
+  ELSE
+    bOvercurrentFault := FALSE;
+  END_IF;
+  
+  CheckOvercurrentProtection := TRUE;
+END_METHOD
+
+METHOD PROTECTED CheckOvertemperatureProtection : BOOL
+VAR
+  bFaultDetected : BOOL;
+BEGIN
+  // 过热保护检测 - 快速比较
+  bFaultDetected := (stDiagnostics.fCurrentTemperature > fOvertemperatureThreshold);
+  
+  // 使用定时器实现故障确认
+  fbOvertemperatureTimer(IN := bFaultDetected, PT := T#500MS);
+  
+  IF fbOvertemperatureTimer.Q THEN
+    IF NOT bOvertemperatureFault THEN
+      RecordFault(E_FaultType#OVERTEMPERATURE, 102, '过热故障');
+      bOvertemperatureFault := TRUE;
+    END_IF;
+  ELSE
+    bOvertemperatureFault := FALSE;
+  END_IF;
+  
+  CheckOvertemperatureProtection := TRUE;
+END_METHOD
+
+METHOD PROTECTED CheckOverloadProtection : BOOL
+VAR
+  bFaultDetected : BOOL;
+  fLoadPercentage : REAL;
+BEGIN
+  // 过载保护检测(基于电流和时间)
+  IF fOverloadThreshold > 0.0 THEN
+    fLoadPercentage := stDiagnostics.fCurrentCurrent / fOverloadThreshold;
+    bFaultDetected := (fLoadPercentage > 1.0) AND (fActualSpeed > 0.1);
+  ELSE
+    bFaultDetected := FALSE;
+  END_IF;
+  
+  // 使用定时器实现过载延迟保护
+  fbOverloadTimer(IN := bFaultDetected, PT := tOverloadDelay);
+  
+  IF fbOverloadTimer.Q THEN
+    IF NOT bOverloadFault THEN
+      RecordFault(E_FaultType#OVERLOAD, 103, '过载故障');
+      bOverloadFault := TRUE;
+    END_IF;
+  ELSE
+    bOverloadFault := FALSE;
+  END_IF;
+  
+  CheckOverloadProtection := TRUE;
+END_METHOD
+
+METHOD PROTECTED CheckShortCircuitProtection : BOOL
+VAR
+  bFaultDetected : BOOL;
+BEGIN
+  // 短路保护检测(电流突变检测) - 快速比较
+  IF stDiagnostics.fCurrentCurrent > (fOvercurrentThreshold * 2.0) THEN
+    bFaultDetected := TRUE;
+  ELSE
+    bFaultDetected := FALSE;
+  END_IF;
+  
+  // 短路故障快速响应
+  fbShortCircuitTimer(IN := bFaultDetected, PT := T#10MS);
+  
+  IF fbShortCircuitTimer.Q THEN
+    IF NOT bShortCircuitFault THEN
+      RecordFault(E_FaultType#SHORT_CIRCUIT, 104, '短路故障');
+      bShortCircuitFault := TRUE;
+    END_IF;
+  ELSE
+    bShortCircuitFault := FALSE;
+  END_IF;
+  
+  CheckShortCircuitProtection := TRUE;
+END_METHOD
+
+METHOD PROTECTED RecordFault : BOOL
+VAR_INPUT
+  eFaultType : E_FaultType; // 故障类型
+  nFaultCode : UINT; // 故障代码
+  sDescription : STRING; // 故障描述
+END_VAR
+VAR
+  i : UINT;
+BEGIN
+  // 更新当前故障信息
+  stDiagnostics.nCurrentFaultCode := nFaultCode;
+  stDiagnostics.eCurrentFaultType := eFaultType;
+  
+  // 添加到故障历史记录(优化的循环逻辑)
+  IF stDiagnostics.nFaultHistoryCount < 10 THEN
+    // 添加新记录
+    stDiagnostics.arrFaultHistory[stDiagnostics.nFaultHistoryCount].nFaultCode := nFaultCode;
+    stDiagnostics.arrFaultHistory[stDiagnostics.nFaultHistoryCount].eFaultType := eFaultType;
+    stDiagnostics.arrFaultHistory[stDiagnostics.nFaultHistoryCount].tFaultTime := TONOW();
+    stDiagnostics.arrFaultHistory[stDiagnostics.nFaultHistoryCount].bActive := TRUE;
+    stDiagnostics.arrFaultHistory[stDiagnostics.nFaultHistoryCount].sDescription := sDescription;
+    stDiagnostics.nFaultHistoryCount := stDiagnostics.nFaultHistoryCount + 1;
+  ELSE
+   

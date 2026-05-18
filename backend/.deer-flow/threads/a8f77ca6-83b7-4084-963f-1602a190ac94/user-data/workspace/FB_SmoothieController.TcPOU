@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="4.2.0.19">
+  <TcPOU Name="FB_SmoothieController" Id="{B2C3D4E5-F6A7-8901-BCDE-F0123456789A}">
+    <Interface>
+      <POUType>FunctionBlock</POUType>
+      <ImplementationLanguage>ST</ImplementationLanguage>
+      <IOs>
+        <Input Name="i_xBananaAvailable" Datatype="BOOL" Comment="香蕉原料是否可用" />
+        <Input Name="i_xBerryMixAvailable" Datatype="BOOL" Comment="混合莓原料是否可用" />
+        <Input Name="i_xSpinachAvailable" Datatype="BOOL" Comment="菠菜原料是否可用" />
+        <Input Name="i_xYogurtAvailable" Datatype="BOOL" Comment="酸奶原料是否可用" />
+        <Input Name="i_nCustomerPreference" Datatype="INT" Comment="用户选择的食谱编号" />
+        <Output Name="q_xBlenderMotor" Datatype="BOOL" Comment="搅拌电机控制输出" />
+        <Output Name="q_xDispenser" Datatype="BOOL" Comment="分配器控制输出" />
+        <Output Name="q_sSystemStatus" Datatype="STRING[50]" Comment="系统状态信息" />
+        <Output Name="q_sMissingIngredients" Datatype="STRING[100]" Comment="缺少的原料列表" />
+      </IOs>
+      <Locals>
+        <Var Name="RecipeSelector" Datatype="FC_RecipeSelector" Comment="食谱选择函数实例" />
+        <Var Name="IngredientChecker" Datatype="FB_IngredientChecker" Comment="原料检查功能块实例" />
+        <Var Name="xRequiredBanana" Datatype="BOOL" Comment="是否需要香蕉" />
+        <Var Name="xRequiredBerryMix" Datatype="BOOL" Comment="是否需要混合莓" />
+        <Var Name="xRequiredSpinach" Datatype="BOOL" Comment="是否需要菠菜" />
+        <Var Name="xRequiredYogurt" Datatype="BOOL" Comment="是否需要酸奶" />
+        <Var Name="xValidRecipe" Datatype="BOOL" Comment="食谱选择是否有效" />
+        <Var Name="xAllIngredientsAvailable" Datatype="BOOL" Comment="所有所需原料是否可用" />
+      </Locals>
+    </Interface>
+    <Implementation>
+      <ST>
+// 选择食谱
+RecipeSelector(
+    i_nCustomerPreference := i_nCustomerPreference,
+    q_xRequiredBanana => xRequiredBanana,
+    q_xRequiredBerryMix => xRequiredBerryMix,
+    q_xRequiredSpinach => xRequiredSpinach,
+    q_xRequiredYogurt => xRequiredYogurt,
+    q_xValidRecipe => xValidRecipe
+);
+
+// 检查原料可用性
+IngredientChecker(
+    i_xBananaAvailable := i_xBananaAvailable,
+    i_xBerryMixAvailable := i_xBerryMixAvailable,
+    i_xSpinachAvailable := i_xSpinachAvailable,
+    i_xYogurtAvailable := i_xYogurtAvailable,
+    i_xRequiredBanana := xRequiredBanana,
+    i_xRequiredBerryMix := xRequiredBerryMix,
+    i_xRequiredSpinach := xRequiredSpinach,
+    i_xRequiredYogurt := xRequiredYogurt,
+    q_xAllIngredientsAvailable => xAllIngredientsAvailable,
+    q_sMissingIngredients => q_sMissingIngredients
+);
+
+// 控制输出逻辑
+IF xValidRecipe AND xAllIngredientsAvailable THEN
+    q_xBlenderMotor := TRUE;
+    q_xDispenser := TRUE;
+    q_sSystemStatus := '正常运行中...';
+ELSE
+    q_xBlenderMotor := FALSE;
+    q_xDispenser := FALSE;
+    
+    IF NOT xValidRecipe THEN
+        q_sSystemStatus := '无效的食谱选择';
+        q_sMissingIngredients := '';
+    ELSE
+        q_sSystemStatus := CONCAT('缺少原料: ', LEFT(q_sMissingIngredients, 40)); // 限制长度适应显示
+    END_IF;
+END_IF;
+      </ST>
+    </Implementation>
+  </TcPOU>
+</TcPlcObject>

@@ -1,0 +1,9 @@
+TYPE E_MotorState :
+(
+    STOPPED := 0,
+    STARTING := 1,
+    RUNNING := 2,
+    STOPPING := 3,
+    FAULT := 4
+) DINT;
+END_TYPE

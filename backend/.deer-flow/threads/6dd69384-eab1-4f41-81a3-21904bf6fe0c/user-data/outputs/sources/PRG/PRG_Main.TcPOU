@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns="http://infosys.beckhoff.com/TC3/POU" Name="PRG_Main" Type="Program" Version="1.0.0.0">
+  <Description>电机控制测试主程序 - 用于测试FB_MotorControl和FB_OverloadProtection功能</Description>
+  <Interface>
+    <Internals>
+      <Internal Name="_fbMotorControl" Type="FB_MotorControl" Description="电机控制FB实例"/>
+      <Internal Name="_bStartTest" Type="BOOL" Description="测试启动命令"/>
+      <Internal Name="_bStopTest" Type="BOOL" Description="测试停止命令"/>
+      <Internal Name="_bResetTest" Type="BOOL" Description="测试复位命令"/>
+      <Internal Name="_nTargetSpeedTest" Type="DINT" Description="测试目标转速"/>
+      <Internal Name="_fCurrentFeedbackTest" Type="REAL" Description="测试电流反馈"/>
+      <Internal Name="_tTestTimer" Type="TON" Description="测试定时器"/>
+      <Internal Name="_nTestStep" Type="DINT" Description="测试步骤"/>
+    </Internals>
+  </Interface>
+  <Implementation>
+    <ST>
+(* 电机控制测试主程序 - PRG_Main *)
+(* 功能: 测试电机控制FB的启停、调速、过载保护功能 *)
+
+PROGRAM PRG_Main
+VAR
+    _fbMotorControl: FB_MotorControl;
+    _bStartTest: BOOL;
+    _bStopTest: BOOL;
+    _bResetTest: BOOL;
+    _nTargetSpeedTest: DINT := 1500;
+    _fCurrentFeedbackTest: REAL := 50.0;
+    _tTestTimer: TON;
+    _nTestStep: DINT := 0;
+    _eMotorState: E_MotorState;
+    _eErrorCode: E_ErrorCode;
+    _bOverloadActive: BOOL;
+END_VAR
+
+(* 测试定时器，每5秒切换一个测试步骤 *)
+_tTestTimer(IN := TRUE, PT := T#5S);
+
+IF _tTestTimer.Q THEN
+    _tTestTimer(IN := FALSE);
+    _nTestStep := _nTestStep + 1;
+    IF _nTestStep > 5 THEN
+        _nTestStep := 0;
+    END_IF;
+END_IF;
+
+(* 测试步骤逻辑 *)
+CASE _nTestStep OF
+    0:
+        (* 初始状态 - 停止 *)
+        _bStartTest := FALSE;
+        _bStopTest := TRUE;
+        _bResetTest := FALSE;
+        _nTargetSpeedTest := 0;
+        _fCurrentFeedbackTest := 0.0;
+    
+    1:
+        (* 步骤1 - 启动电机到1500 RPM *)
+        _bStartTest := TRUE;
+        _bStopTest := FALSE;
+        _nTargetSpeedTest := 1500;
+        _fCurrentFeedbackTest := 50.0;
+    
+    2:
+        (* 步骤2 - 调速到2500 RPM *)
+        _bStartTest := FALSE;
+        _nTargetSpeedTest := 2500;
+        _fCurrentFeedbackTest := 65.0;
+    
+    3:
+        (* 步骤3 - 模拟过载情况 *)
+        _fCurrentFeedbackTest := 90.0;  (* 超过80A阈值 *)
+    
+    4:
+        (* 步骤4 - 复位过载 *)
+        _bResetTest := TRUE;
+        _fCurrentFeedbackTest := 50.0;
+    
+    5:
+        (* 步骤5 - 停止电机 *)
+        _bStartTest := FALSE;
+        _bStopTest := TRUE;
+        _nTargetSpeedTest := 0;
+END_CASE;
+
+(* 调用电机控制FB *)
+_fbMotorControl(
+    bStart := _bStartTest,
+    bStop := _bStopTest,
+    bReset := _bResetTest,
+    nTargetSpeed := _nTargetSpeedTest,
+    fActualCurrent := _fCurrentFeedbackTest,
+    nRampTime := 200,
+    nActualSpeed => ,
+    eMotorState => _eMotorState,
+    eErrorCode => _eErrorCode,
+    bOverloadActive => _bOverloadActive
+);
+
+(* 输出测试结果到日志 *)
+CASE _eMotorState OF
+    E_MotorState.STOPPED:
+        IF _eErrorCode = E_ErrorCode.NO_ERROR THEN
+            // INFO: 电机已停止
+        ELSE
+            // WARNING: 电机故障停止 - 错误代码: _eErrorCode
+        END_IF;
+    
+    E_MotorState.STARTING:
+        // INFO: 电机正在启动 - 当前转速: 
+    
+    E_MotorState.RUNNING:
+        // INFO: 电机正常运行 - 当前转速: , 电流: _fCurrentFeedbackTest
+    
+    E_MotorState.STOPPING:
+        // INFO: 电机正在停止 - 当前转速: 
+    
+    E_MotorState.FAULT:
+        // ERROR: 电机故障 - 错误代码: _eErrorCode
+END_CASE;
+
+(* 过载状态提示 *)
+IF _bOverloadActive THEN
+    // ERROR: 电机过载保护已激活
+END_IF;
+
+END_PROGRAM
+    </ST>
+  </Implementation>
+  <Attributes>
+    <Attribute Name="TcVersion" Value="3.1.4024.17"/>
+    <Attribute Name="Guid" Value="{F6A7B8C9-0123-45DE-6789-0123ABCDEF45}"/>
+  </Attributes>
+</POU>

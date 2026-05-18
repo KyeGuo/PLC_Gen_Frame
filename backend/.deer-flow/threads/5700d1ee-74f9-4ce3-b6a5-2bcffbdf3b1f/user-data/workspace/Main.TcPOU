@@ -1,0 +1,74 @@
+PROGRAM Main
+VAR
+    // 功能块实例
+    TrafficControl : FB_TrafficControl;
+    
+    // 输入变量
+    VehicleCount1 : INT;
+    VehicleCount2 : INT;
+    VehicleCount3 : INT;
+    VehicleCount4 : INT;
+    
+    // 输出变量
+    TrafficLight1 : BOOL;
+    TrafficLight2 : BOOL;
+    TrafficLight3 : BOOL;
+    TrafficLight4 : BOOL;
+    
+    // 内部变量
+    UpdateTimer : TON;
+END_VAR
+
+// 100ms周期更新交通灯状态
+UpdateTimer(IN := TRUE, PT := T#100MS);
+
+IF UpdateTimer.Q THEN
+    // 调用交通控制功能块
+    TrafficControl(
+        VehicleCount1 := VehicleCount1,
+        VehicleCount2 := VehicleCount2,
+        VehicleCount3 := VehicleCount3,
+        VehicleCount4 := VehicleCount4,
+        TrafficLight1 => TrafficLight1,
+        TrafficLight2 => TrafficLight2,
+        TrafficLight3 => TrafficLight3,
+        TrafficLight4 => TrafficLight4
+    );
+    
+    // 更新系统状态
+    SystemState.Group1.VehicleCountA := VehicleCount1;
+    SystemState.Group1.VehicleCountB := VehicleCount2;
+    SystemState.Group1.TrafficLightA := TrafficLight1;
+    SystemState.Group1.TrafficLightB := TrafficLight2;
+    
+    SystemState.Group2.VehicleCountA := VehicleCount3;
+    SystemState.Group2.VehicleCountB := VehicleCount4;
+    SystemState.Group2.TrafficLightA := TrafficLight3;
+    SystemState.Group2.TrafficLightB := TrafficLight4;
+    
+    SystemState.UpdateCounter := SystemState.UpdateCounter + 1;
+    SystemState.LastUpdateTime := DT_TO_LDT(NOW());
+    
+    // 重置定时器
+    UpdateTimer(IN := FALSE);
+    UpdateTimer(IN := TRUE);
+END_IF
+
+// 故障诊断逻辑
+VehicleSensorFault[1] := VehicleCount1 < 0 OR VehicleCount1 > 9999;
+VehicleSensorFault[2] := VehicleCount2 < 0 OR VehicleCount2 > 9999;
+VehicleSensorFault[3] := VehicleCount3 < 0 OR VehicleCount3 > 9999;
+VehicleSensorFault[4] := VehicleCount4 < 0 OR VehicleCount4 > 9999;
+
+TrafficLightFault[1] := TrafficLight1 = TrafficLight2; // 违反互补状态
+TrafficLightFault[2] := TrafficLight1 = TrafficLight2;
+TrafficLightFault[3] := TrafficLight3 = TrafficLight4;
+TrafficLightFault[4] := TrafficLight3 = TrafficLight4;
+
+SystemState.FaultDetected := VehicleSensorFault[1] OR VehicleSensorFault[2] OR 
+                             VehicleSensorFault[3] OR VehicleSensorFault[4] OR
+                             TrafficLightFault[1] OR TrafficLightFault[2] OR
+                             TrafficLightFault[3] OR TrafficLightFault[4];
+
+SystemState.SystemReady := NOT SystemState.FaultDetected;
+END_PROGRAM

@@ -1,0 +1,78 @@
+FUNCTION_BLOCK FB_RetractableRoofControl
+VAR_INPUT
+    RainSensor : BOOL;           // 雨水传感器信号
+    WindSensor : BOOL;           // 风速传感器信号
+    TemperatureSensor : REAL;    // 温度传感器信号
+END_VAR
+VAR_OUTPUT
+    RoofMotor : BOOL;            // 屋顶电机控制信号
+END_VAR
+VAR
+    // 内部变量：屋顶状态枚举
+    TYPE 
+        RoofState : (
+            STATE_FULLY_OPEN,    // 完全打开
+            STATE_PARTIALLY_CLOSED, // 部分关闭
+            STATE_SLIGHTLY_CLOSED,  // 轻微关闭
+            STATE_FULLY_CLOSED      // 完全关闭
+        );
+    END_TYPE
+    CurrentState : RoofState;    // 当前屋顶状态
+END_VAR
+VAR CONSTANT
+    TEMP_THRESHOLD : REAL := 20.0; // 温度阈值
+END_VAR
+
+// 形式化属性定义
+PROPERTY RainAndWind_FullyClosed : BOOL;
+PROPERTY
+    RainSensor AND WindSensor IMPLY NOT RoofMotor;
+END_PROPERTY
+
+PROPERTY RainNoWind_PartiallyClosed : BOOL;
+PROPERTY
+    RainSensor AND NOT WindSensor IMPLY RoofMotor;
+END_PROPERTY
+
+PROPERTY LowTemperature_SlightlyClosed : BOOL;
+PROPERTY
+    NOT RainSensor AND (TemperatureSensor < TEMP_THRESHOLD) IMPLY RoofMotor;
+END_PROPERTY
+
+PROPERTY HighTemperature_FullyOpen : BOOL;
+PROPERTY
+    NOT RainSensor AND (TemperatureSensor >= TEMP_THRESHOLD) IMPLY NOT RoofMotor;
+END_PROPERTY
+
+METHOD UpdateRoofState
+    // 根据传感器输入更新屋顶状态
+    IF RainSensor THEN
+        IF WindSensor THEN
+            CurrentState := RoofState.STATE_FULLY_CLOSED;    // 下雨且有风时完全关闭
+        ELSE
+            CurrentState := RoofState.STATE_PARTIALLY_CLOSED; // 下雨但没风时部分关闭
+        END_IF;
+    ELSE
+        IF TemperatureSensor < TEMP_THRESHOLD THEN
+            CurrentState := RoofState.STATE_SLIGHTLY_CLOSED;  // 不下雨且低温时轻微关闭
+        ELSE
+            CurrentState := RoofState.STATE_FULLY_OPEN;       // 不下雨且高温时完全打开
+        END_IF;
+    END_IF;
+END_METHOD
+
+METHOD MapStateToMotor
+    // 将屋顶状态映射为电机控制信号
+    CASE CurrentState OF
+        RoofState.STATE_FULLY_OPEN:    RoofMotor := FALSE;
+        RoofState.STATE_PARTIALLY_CLOSED: RoofMotor := TRUE;
+        RoofState.STATE_SLIGHTLY_CLOSED: RoofMotor := TRUE;
+        RoofState.STATE_FULLY_CLOSED:  RoofMotor := FALSE;
+    END_CASE;
+END_METHOD
+
+// 主逻辑
+UpdateRoofState();
+MapStateToMotor();
+
+END_FUNCTION_BLOCK

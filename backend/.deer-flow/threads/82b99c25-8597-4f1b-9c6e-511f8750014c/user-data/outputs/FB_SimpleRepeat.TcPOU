@@ -1,0 +1,24 @@
+FUNCTION_BLOCK FB_SimpleRepeat
+VAR_INPUT
+    InputVar1 : INT;    // 输入变量，由调用方提供初始值
+    InputCounter : INT; // 计数器输入，由调用方提供初始值
+END_VAR
+VAR_OUTPUT
+    OutputVar1 : INT;   // 输出变量
+END_VAR
+VAR
+    Counter : INT;      // 内部计数器变量
+END_VAR
+
+// 初始化内部计数器和输出变量
+Counter := InputCounter;
+OutputVar1 := InputVar1;
+
+// REPEAT循环实现重复乘法逻辑
+// 功能：将输入值重复乘以2，重复次数由输入计数器指定
+// 形式化属性：当InputVar1=2且InputCounter=4时，OutputVar1=32，Counter最终为0
+REPEAT
+    OutputVar1 := OutputVar1 * 2;  // 每次将输出乘以2
+    Counter := Counter - 1;          // 计数器减1
+UNTIL Counter = 0                    // 直到计数器等于0
+END_REPEAT;

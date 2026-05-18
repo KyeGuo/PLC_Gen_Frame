@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns="http://infosys.beckhoff.com/TC3/POU" Name="FB_MotorControl" Type="FunctionBlock" Version="1.0.0.0">
+  <Description>电机控制核心功能块 - 支持启停控制、转速调节、状态机管理</Description>
+  <Interface>
+    <Inputs>
+      <Input Name="bStart" Type="BOOL" Description="启动命令 (上升沿触发)"/>
+      <Input Name="bStop" Type="BOOL" Description="停止命令 (上升沿触发)"/>
+      <Input Name="bReset" Type="BOOL" Description="故障复位命令 (上升沿触发)"/>
+      <Input Name="nTargetSpeed" Type="DINT" Description="目标转速 (0-3000 RPM)"/>
+      <Input Name="fActualCurrent" Type="REAL" Description="实际电流反馈 (0-100 A)"/>
+      <Input Name="nRampTime" Type="DINT" Description="转速斜坡时间 (0-1000 ms)" DefaultValue="100"/>
+    </Inputs>
+    <Outputs>
+      <Output Name="nActualSpeed" Type="DINT" Description="实际转速输出 (0-3000 RPM)"/>
+      <Output Name="eMotorState" Type="E_MotorState" Description="电机当前状态"/>
+      <Output Name="eErrorCode" Type="E_ErrorCode" Description="错误代码"/>
+      <Output Name="bOverloadActive" Type="BOOL" Description="过载保护激活信号"/>
+    </Outputs>
+    <Internals>
+      <Internal Name="_eCurrentState" Type="E_MotorState" Description="当前状态机状态"/>
+      <Internal Name="_nSpeedRampStep" Type="DINT" Description="转速斜坡步长"/>
+      <Internal Name="_tStateTimer" Type="TON" Description="状态转换定时器"/>
+      <Internal Name="_bStartEdge" Type="BOOL" Description="启动命令上升沿检测"/>
+      <Internal Name="_bStopEdge" Type="BOOL" Description="停止命令上升沿检测"/>
+      <Internal Name="_bResetEdge" Type="BOOL" Description="复位命令上升沿检测"/>
+      <Internal Name="_fbOverload" Type="FB_OverloadProtection" Description="过载保护功能块实例"/>
+    </Internals>
+  </Interface>
+  <Implementation>
+    <ST>
+(* 电机控制核心功能块 - FB_MotorControl *)
+(* 功能: 实现电机启停控制、转速斜坡调节、状态机管理、故障诊断 *)
+
+METHOD FB_MotorControl:
+VAR_INPUT
+    bStart: BOOL;
+    bStop: BOOL;
+    bReset: BOOL;
+    nTargetSpeed: DINT;
+    fActualCurrent: REAL;
+    nRampTime: DINT := 100;
+END_VAR
+VAR_OUTPUT
+    nActualSpeed: DINT;
+    eMotorState: E_MotorState;
+    eErrorCode: E_ErrorCode;
+    bOverloadActive: BOOL;
+END_VAR
+VAR
+    _eCurrentState: E_MotorState := E_MotorState.STOPPED;
+    _nSpeedRampStep: DINT;
+    _tStateTimer: TON;
+    _bStartEdge: BOOL;
+    _bStopEdge: BOOL;
+    _bResetEdge: BOOL;
+    _fbOverload: FB_OverloadProtection;
+    _nLastTargetSpeed: DINT;
+END_VAR
+
+(* 上升沿检测 *)
+_bStartEdge := bStart AND NOT _bStartEdge;
+_bStopEdge := bStop AND NOT _bStopEdge;
+_bResetEdge := bReset AND NOT _bResetEdge;
+
+(* 过载保护功能块调用 *)
+_fbOverload(
+    fActualCurrent := fActualCurrent,
+    bReset := _bResetEdge,
+    bOverloadActive => bOverloadActive,
+    eErrorCode => eErrorCode
+);
+
+(* 状态机主逻辑 *)
+CASE _eCurrentState OF
+    E_MotorState.STOPPED:
+        (* 初始化状态 *)
+        nActualSpeed := 0;
+        eMotorState := E_MotorState.STOPPED;
+        
+        (* 启动命令触发 *)
+        IF _bStartEdge AND NOT bOverloadActive THEN
+            _eCurrentState := E_MotorState.STARTING;
+            _tStateTimer(IN := TRUE, PT := T#100MS);
+            _nLastTargetSpeed := nTargetSpeed;
+            
+            (* 计算转速斜坡步长 *)
+            IF nRampTime > 0 THEN
+                _nSpeedRampStep := ABS(nTargetSpeed) / (nRampTime / 10);
+                IF _nSpeedRampStep = 0 THEN
+                    _nSpeedRampStep := 1;
+                END_IF;
+            ELSE
+                _nSpeedRampStep := ABS(nTargetSpeed);
+            END_IF;
+        END_IF;
+        
+        (* 故障复位 *)
+        IF _bResetEdge THEN
+            eErrorCode := E_ErrorCode.NO_ERROR;
+        END_IF;
+    
+    E_MotorState.STARTING:
+        eMotorState := E_MotorState.STARTING;
+        
+        (* 转速斜坡上升 *)
+        IF nActualSpeed < _nLastTargetSpeed THEN
+            nActualSpeed := nActualSpeed + _nSpeedRampStep;
+            IF nActualSpeed > _nLastTargetSpeed THEN
+                nActualSpeed := _nLastTargetSpeed;
+            END_IF;
+        ELSIF nActualSpeed > _nLastTargetSpeed THEN
+            nActualSpeed := nActualSpeed - _nSpeedRampStep;
+            IF nActualSpeed < _nLastTargetSpeed THEN
+                nActualSpeed := _nLastTargetSpeed;
+            END_IF;
+        END_IF;
+        
+        (* 启动完成条件 *)
+        IF nActualSpeed = _nLastTargetSpeed AND _tStateTimer.Q THEN
+            _eCurrentState := E_MotorState.RUNNING;
+        END_IF;
+        
+        (* 停止命令或过载触发 *)
+        IF _bStopEdge OR bOverloadActive THEN
+            _eCurrentState := E_MotorState.STOPPING;
+        END_IF;
+    
+    E_MotorState.RUNNING:
+        eMotorState := E_MotorState.RUNNING;
+        
+        (* 转速跟踪目标值 *)
+        IF nTargetSpeed <> _nLastTargetSpeed THEN
+            (* 目标转速变化，重新计算斜坡步长 *)
+            IF nRampTime > 0 THEN
+                _nSpeedRampStep := ABS(nTargetSpeed - nActualSpeed) / (nRampTime / 10);
+                IF _nSpeedRampStep = 0 THEN
+                    _nSpeedRampStep := 1;
+                END_IF;
+            ELSE
+                _nSpeedRampStep := ABS(nTargetSpeed - nActualSpeed);
+            END_IF;
+            _nLastTargetSpeed := nTargetSpeed;
+        END_IF;
+        
+        (* 转速斜坡调节 *)
+        IF nActualSpeed < nTargetSpeed THEN
+            nActualSpeed := nActualSpeed + _nSpeedRampStep;
+            IF nActualSpeed > nTargetSpeed THEN
+                nActualSpeed := nTargetSpeed;
+            END_IF;
+        ELSIF nActualSpeed > nTargetSpeed THEN
+            nActualSpeed := nActualSpeed - _nSpeedRampStep;
+            IF nActualSpeed < nTargetSpeed THEN
+                nActualSpeed := nTargetSpeed;
+            END_IF;
+        END_IF;
+        
+        (* 停止命令或过载触发 *)
+        IF _bStopEdge OR bOverloadActive THEN
+            _eCurrentState := E_MotorState.STOPPING;
+        END_IF;
+        
+        (* 转速超限检测 *)
+        IF nActualSpeed > 3000 OR nActualSpeed < 0 THEN
+            eErrorCode := E_ErrorCode.SPEED_OUT_OF_RANGE;
+            _eCurrentState := E_MotorState.FAULT;
+        END_IF;
+    
+    E_MotorState.STOPPING:
+        eMotorState := E_MotorState.STOPPING;
+        
+        (* 转速斜坡下降 *)
+        IF nActualSpeed > 0 THEN
+            nActualSpeed := nActualSpeed - _nSpeedRampStep;
+            IF nActualSpeed < 0 THEN
+                nActualSpeed := 0;
+            END_IF;
+        ELSE
+            _eCurrentState := E_MotorState.STOPPED;
+        END_IF;
+        
+        (* 强制停止 *)
+        IF nRampTime = 0 THEN
+            nActualSpeed := 0;
+            _eCurrentState := E_MotorState.STOPPED;
+        END_IF;
+    
+    E_MotorState.FAULT:
+        eMotorState := E_MotorState.FAULT;
+        nActualSpeed := 0;
+        
+        (* 故障复位 *)
+        IF _bResetEdge THEN
+            eErrorCode := E_ErrorCode.NO_ERROR;
+            _eCurrentState := E_MotorState.STOPPED;
+        END_IF;
+        
+        (* 清除启动命令 *)
+        IF NOT bStart THEN
+            _bStartEdge := FALSE;
+        END_IF;
+END_CASE;
+
+(* 状态同步 *)
+_eCurrentState := eMotorState;
+
+END_METHOD
+    </ST>
+  </Implementation>
+  <Attributes>
+    <Attribute Name="TcVersion" Value="3.1.4024.17"/>
+    <Attribute Name="Guid" Value="{D4E5F6A7-8901-23BC-4567-8901ABCDEF23}"/>
+  </Attributes>
+</POU>

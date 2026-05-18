@@ -1,0 +1,17 @@
+VAR_GLOBAL
+    // 系统配置参数
+    MIN_GREEN_TIME : TIME := T#5S;    // 最小绿灯时间
+    MAX_GREEN_TIME : TIME := T#60S;   // 最大绿灯时间
+    VEHICLE_THRESHOLD : INT := 5;     // 车辆数量变化阈值
+    
+    // 系统状态变量
+    SystemState : ST_TrafficSystemState; // 系统整体状态
+    
+    // 故障诊断变量
+    VehicleSensorFault : ARRAY[1..4] OF BOOL; // 车辆传感器故障标志
+    TrafficLightFault : ARRAY[1..4] OF BOOL;  // 交通灯故障标志
+    
+    // 统计信息
+    TotalVehicleCount : ARRAY[1..4] OF DINT;  // 累计车辆数量
+    GreenLightDuration : ARRAY[1..4] OF TIME; // 绿灯累计时长
+END_VAR_GLOBAL

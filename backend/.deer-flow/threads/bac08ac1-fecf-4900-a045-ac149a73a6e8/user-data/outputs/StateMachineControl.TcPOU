@@ -1,0 +1,63 @@
+// StateMachineControl功能块实现
+// 实现简单的状态机控制，包含Idle和Processing两个状态
+
+FUNCTION_BLOCK StateMachineControl
+VAR_INPUT
+    request : BOOL;      // 请求信号：TRUE表示开始处理
+    done : BOOL;         // 完成信号：TRUE表示处理完成
+END_VAR
+
+VAR_OUTPUT
+    listen : BOOL;       // 监听状态：TRUE表示系统处于监听状态（Idle状态）
+END_VAR
+
+VAR
+    // 状态变量
+    state : INT := STATE_IDLE;  // 当前状态，初始化为Idle
+    
+    // 上升沿检测变量
+    request_prev : BOOL := FALSE;  // 上一周期的request信号值
+    done_prev : BOOL := FALSE;     // 上一周期的done信号值
+    request_edge : BOOL;           // request信号的上升沿检测结果
+    done_edge : BOOL;              // done信号的上升沿检测结果
+    
+    // 状态常量定义
+    STATE_IDLE : CONST INT := 0;     // 空闲状态
+    STATE_PROCESSING : CONST INT := 1; // 处理状态
+END_VAR
+
+// 上升沿检测逻辑
+request_edge := request AND NOT request_prev;
+done_edge := done AND NOT done_prev;
+
+// 状态机逻辑
+CASE state OF
+    STATE_IDLE:
+        // 在Idle状态：当没有请求时设置listen为TRUE
+        listen := TRUE;
+        
+        // 状态转换：Idle -> Processing
+        IF request_edge THEN
+            state := STATE_PROCESSING;
+        END_IF;
+        
+    STATE_PROCESSING:
+        // 在Processing状态：设置listen为FALSE
+        listen := FALSE;
+        
+        // 状态转换：Processing -> Idle
+        IF done_edge THEN
+            state := STATE_IDLE;
+        END_IF;
+        
+    ELSE:
+        // 异常状态处理：未知状态时自动回退到Idle状态
+        state := STATE_IDLE;
+        listen := TRUE;
+END_CASE;
+
+// 更新上一周期的信号值
+request_prev := request;
+done_prev := done;
+
+END_FUNCTION_BLOCK

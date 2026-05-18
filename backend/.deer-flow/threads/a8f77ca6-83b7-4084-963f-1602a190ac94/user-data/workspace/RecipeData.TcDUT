@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="4.2.0.19">
+  <TcDUT Name="RecipeData" Id="{D4E5F6A7-B8C9-0123-DEF0-123456789ABC}">
+    <Interface>
+      <Struct>
+        <Member Name="RecipeID" Datatype="INT" Comment="食谱唯一标识" />
+        <Member Name="RecipeName" Datatype="STRING[50]" Comment="食谱名称" />
+        <Member Name="RequiresBanana" Datatype="BOOL" Comment="是否需要香蕉" />
+        <Member Name="RequiresBerryMix" Datatype="BOOL" Comment="是否需要混合莓" />
+        <Member Name="RequiresSpinach" Datatype="BOOL" Comment="是否需要菠菜" />
+        <Member Name="RequiresYogurt" Datatype="BOOL" Comment="是否需要酸奶" />
+      </Struct>
+    </Interface>
+  </TcDUT>
+</TcPlcObject>

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1" ProductVersion="3.1.4024.17">
+  <POU Name="FB_BaseControl" Id="{A1B2C3D4-5E6F-7890-ABCD-EF1234567890}" Public="true" Datatype="" InputVars="" OutputVars="" InOutVars="" CodeFlags="2">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_BaseControl
+VAR PUBLIC
+  Enable : BOOL;                     // 功能块使能
+  Reset : BOOL;                      // 故障复位
+  EStop : BOOL;                      // 急停输入
+  
+  bFault : BOOL;                     // 故障状态
+  nFaultCode : E_FaultCode;          // 当前故障码
+  
+  DiagData : S_MotorDiagnostics;     // 诊断数据
+END_VAR
+VAR PROTECTED
+  _bFirstScan : BOOL;                // 首次扫描标志
+  _tCycleStartTime : DT;             // 周期开始时间
+END_VAR
+VAR
+END_VAR
+    ]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+METHOD Init
+VAR
+END_VAR
+  bFault := FALSE;
+  nFaultCode := E_FaultCode.NoFault;
+  _bFirstScan := TRUE;
+  
+  // 初始化诊断数据
+  DiagData.RunTimeTotal := T#0s;
+  DiagData.StartCount := 0;
+  DiagData.CurrentFault := E_FaultCode.NoFault;
+  DiagData.FaultHistoryIndex := 0;
+  DiagData.TotalFaults := 0;
+  
+  // 清空故障历史
+  FOR i := 0 TO 9 DO
+    DiagData.FaultHistory[i].FaultCode := E_FaultCode.NoFault;
+    DiagData.FaultHistory[i].OccurTime := DT#1970-01-01-00:00:00.000;
+    DiagData.FaultHistory[i].ResetTime := DT#1970-01-01-00:00:00.000;
+    DiagData.FaultHistory[i].IsActive := FALSE;
+  END_FOR
+END_METHOD
+
+METHOD Execute
+VAR
+END_VAR
+  IF _bFirstScan THEN
+    Init();
+    _bFirstScan := FALSE;
+  END_IF
+  
+  // 急停检测（最高优先级）
+  IF EStop THEN
+    SetFault(E_FaultCode.EStopTriggered);
+    RETURN;
+  END_IF
+  
+  // 故障复位处理
+  IF Reset THEN
+    ResetFault();
+  END_IF
+  
+  // 记录运行时间
+  NOT bFault AND Enable THEN
+    DiagData.RunTimeTotal := DiagData.RunTimeTotal + T#1ms;
+  END_IF
+END_METHOD
+
+METHOD PROTECTED SetFault
+VAR_INPUT
+  faultCode : E_FaultCode;
+END_VAR
+VAR
+END_VAR
+  IF faultCode <> E_FaultCode.NoFault AND NOT bFault THEN
+    bFault := TRUE;
+    nFaultCode := faultCode;
+    DiagData.CurrentFault := faultCode;
+    
+    // 记录故障历史
+    DiagData.FaultHistory[DiagData.FaultHistoryIndex].FaultCode := faultCode;
+    DiagData.FaultHistory[DiagData.FaultHistoryIndex].OccurTime := CURRENT_DT;
+    DiagData.FaultHistory[DiagData.FaultHistoryIndex].IsActive := TRUE;
+    DiagData.TotalFaults := DiagData.TotalFaults + 1;
+    
+    // 更新记录索引
+    DiagData.FaultHistoryIndex := (DiagData.FaultHistoryIndex + 1) MOD 10;
+  END_IF
+END_METHOD
+
+METHOD ResetFault
+VAR
+END_VAR
+  IF bFault THEN
+    // 复位当前故障
+    bFault := FALSE;
+    nFaultCode := E_FaultCode.NoFault;
+    DiagData.CurrentFault := E_FaultCode.NoFault;
+    
+    // 更新最近故障的复位时间
+    FOR i := 0 TO 9 DO
+      IF DiagData.FaultHistory[i].IsActive THEN
+        DiagData.FaultHistory[i].ResetTime := CURRENT_DT;
+        DiagData.FaultHistory[i].IsActive := FALSE;
+        EXIT; // 只复位最新的激活故障
+      END_IF
+    END_FOR
+  END_IF
+END_METHOD
+      ]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

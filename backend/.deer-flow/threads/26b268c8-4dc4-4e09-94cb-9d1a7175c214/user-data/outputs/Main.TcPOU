@@ -1,0 +1,89 @@
+PROGRAM Main
+VAR
+    // 主功能块实例
+    fb_HomeBrewing: FB_HomeBrewingSystem;
+    
+    // 系统状态处理
+    v_PreviousState: ET_SystemState;
+    v_CurrentState: ET_SystemState;
+    v_ElapsedTime: TIME;
+END_VAR
+
+// 读取传感器数据到全局变量
+g_Temperature := TemperatureSensor;
+g_WaterFlow := WaterFlowSensor;
+
+// 调用主功能块
+fb_HomeBrewing(
+    TemperatureSensor := g_Temperature,
+    WaterFlowSensor := g_WaterFlow,
+    BrewingStartTime := g_BrewingStartTime,
+    BrewingDuration := g_BrewingParams.BrewingDuration,
+    HeatingElement => g_HeatingElement,
+    AgitationMotor => g_AgitationMotor,
+    HopsDispenser => g_HopsDispenser,
+    FermentationTank => g_FermentationTank
+);
+
+// 系统状态机
+v_ElapsedTime := CURRENT_TIME - g_BrewingStartTime;
+
+CASE g_SystemState OF
+    ET_SystemState.Standby:
+        // 等待酿造开始命令
+        IF g_BrewingStartTime > T#0S THEN
+            g_SystemState := ET_SystemState.Brewing;
+        END_IF
+        
+    ET_SystemState.Brewing:
+        // 酿造中状态
+        IF v_ElapsedTime >= g_BrewingParams.FermentationDelay THEN
+            g_SystemState := ET_SystemState.Fermenting;
+        ELSIF v_ElapsedTime >= g_BrewingParams.BrewingDuration THEN
+            g_SystemState := ET_SystemState.Completed;
+        END_IF
+        
+    ET_SystemState.Fermenting:
+        // 发酵中状态
+        IF v_ElapsedTime >= g_BrewingParams.BrewingDuration THEN
+            g_SystemState := ET_SystemState.Completed;
+        END_IF
+        
+    ET_SystemState.Completed:
+        // 酿造完成状态
+        // 可以添加自动重置逻辑
+        
+    ET_SystemState.Fault:
+        // 故障状态处理
+        g_HeatingElement := FALSE;
+        g_AgitationMotor := FALSE;
+        g_HopsDispenser := FALSE;
+        g_FermentationTank := FALSE;
+END_CASE;
+
+// 状态变化处理
+IF g_SystemState <> v_PreviousState THEN
+    v_PreviousState := g_SystemState;
+    // 可以添加状态变化的日志记录或报警
+END_IF;
+
+// 报警逻辑
+IF g_Temperature > 80.0 THEN
+    g_AlarmTemperatureHigh := TRUE;
+    g_SystemState := ET_SystemState.Fault;
+ELSIF g_Temperature < 0.0 THEN
+    g_AlarmTemperatureLow := TRUE;
+    g_SystemState := ET_SystemState.Fault;
+END_IF;
+
+IF g_WaterFlow < 0.0 OR g_WaterFlow > 10.0 THEN
+    g_AlarmFlowError := TRUE;
+    g_SystemState := ET_SystemState.Fault;
+END_IF;
+
+// 将输出变量映射到实际设备
+HeatingElement := g_HeatingElement;
+AgitationMotor := g_AgitationMotor;
+HopsDispenser := g_HopsDispenser;
+FermentationTank := g_FermentationTank;
+END_PROGRAM

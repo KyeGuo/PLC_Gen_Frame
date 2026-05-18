@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1" ProductVersion="3.1.4024.17">
+  <POU Name="FB_MotorControl" Id="{12345678-ABCD-EF12-3456-7890ABCDEF12}" Public="true" Extends="FB_BaseControl" CodeFlags="2">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_MotorControl EXTENDS FB_BaseControl
+VAR PUBLIC
+  // 控制输入
+  Start : BOOL;                      // 启动命令
+  Stop : BOOL;                       // 停止命令
+  Forward : BOOL;                    // 正转命令
+  Reverse : BOOL;                    // 反转命令
+  SpeedPercent : REAL;               // 速度给定(0.0-100.0%)
+  
+  // 反馈输入
+  ActualCurrent : REAL;              // 实际电流(A)
+  ActualTemperature : REAL;          // 实际温度(℃)
+  
+  // 参数配置
+  RatedCurrent : REAL := 10.0;       // 额定电流(A)
+  OvercurrentThreshold : REAL := 15.0; // 过流阈值(A)
+  OvertemperatureThreshold : REAL := 120.0; // 过热阈值(℃)
+  ShortCircuitThreshold : REAL := 50.0; // 短路阈值(A)
+  OverloadDelay : TIME := T#5s;      // 过载延迟时间
+  
+  // 控制输出
+  AO_Speed : UINT;                   // 模拟量输出(0-27648)
+  MotorRunning : BOOL;               // 电机运行状态
+  MotorForward : BOOL;               // 正转输出
+  MotorReverse : BOOL;               // 反转输出
+  
+  // 状态指示
+  CurrentState : E_MotorState;       // 当前电机状态
+END_VAR
+VAR PROTECTED
+  _tOverloadStartTime : DT;          // 过载开始时间
+  _bOverloadDetected : BOOL;         // 过载检测标志
+  _tLastStateChange : DT;            // 上次状态变化时间
+  _fLastSpeed : REAL;                // 上次速度给定
+END_VAR
+VAR
+END_VAR
+    ]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+METHOD OVERRIDE Execute
+VAR
+  tCycleTime : TIME;
+END_VAR
+  // 调用基类执行逻辑
+  SUPER.Execute();
+  
+  // 故障状态下直接输出
+  IF bFault THEN
+    SafeStop();
+    RETURN;
+  END_IF
+  
+  // 使能状态下执行控制逻辑
+  IF Enable THEN
+    // 速度给定合理性检查
+    CheckSpeedRange();
+    
+    // 正反转互锁检查
+    CheckDirectionConflict();
+    
+    // 保护逻辑检查（优先级从高到低）
+    CheckShortCircuit();
+    CheckOvercurrent();
+    CheckOvertemperature();
+    CheckOverload();
+    
+    // 无故障时执行控制逻辑
+    IF NOT bFault THEN
+      UpdateStateMachine();
+      UpdateSpeedOutput();
+    END_IF
+  ELSE
+    // 未使能时安全停止
+    SafeStop();
+  END_IF
+END_METHOD
+
+METHOD UpdateStateMachine
+VAR
+END_VAR
+  CASE CurrentState OF
+    E_MotorState.Stopped:
+      IF Start AND NOT Stop THEN
+        IF Forward THEN
+          CurrentState := E_MotorState.RunningForward;
+          MotorRunning := TRUE;
+          MotorForward := TRUE;
+          MotorReverse := FALSE;
+          DiagData.StartCount := DiagData.StartCount + 1;
+        ELSIF Reverse THEN
+          CurrentState := E_MotorState.RunningReverse;
+          MotorRunning := TRUE;
+          MotorForward := FALSE;
+          MotorReverse := TRUE;
+          DiagData.StartCount := DiagData.StartCount + 1;
+        END_IF
+      END_IF
+      
+    E_MotorState.RunningForward, E_MotorState.RunningReverse:
+      IF Stop OR NOT Enable THEN
+        CurrentState := E_MotorState.Stopped;
+        MotorRunning := FALSE;
+        MotorForward := FALSE;
+        MotorReverse := FALSE;
+      ELSIF (CurrentState = E_MotorState.RunningForward AND Reverse) OR 
+            (CurrentState = E_MotorState.RunningReverse AND Forward) THEN
+        // 先停止再切换方向
+        CurrentState := E_MotorState.Stopped;
+        MotorRunning := FALSE;
+        MotorForward := FALSE;
+        MotorReverse := FALSE;
+      END_IF
+      
+    E_MotorState.Fault:
+      // 故障状态保持，直到复位
+      ;
+  END_CASE
+END_METHOD
+
+METHOD CheckSpeedRange
+VAR
+END_VAR
+  IF SpeedPercent < 0.0 OR SpeedPercent > 100.0 THEN
+    SetFault(E_FaultCode.SpeedOutOfRange);
+    // 速度限幅
+    SpeedPercent := LIMIT(0.0, SpeedPercent, 100.0);
+  END_IF
+END_METHOD
+
+METHOD CheckDirectionConflict
+VAR
+END_VAR
+  IF Forward AND Reverse THEN
+    SetFault(E_FaultCode.DirectionConflict);
+  END_IF
+END_METHOD
+
+METHOD CheckShortCircuit
+VAR
+END_VAR
+  IF ActualCurrent >= ShortCircuitThreshold THEN
+    SetFault(E_FaultCode.ShortCircuit);
+  END_IF
+END_METHOD
+
+METHOD CheckOvercurrent
+VAR
+END_VAR
+  IF ActualCurrent >= OvercurrentThreshold THEN
+    SetFault(E_FaultCode.OverCurrent);
+  END_IF
+END_METHOD
+
+METHOD CheckOvertemperature
+VAR
+END_VAR
+  IF ActualTemperature >= OvertemperatureThreshold THEN
+    SetFault(E_FaultCode.OverTemperature);
+  END_IF
+END_METHOD
+
+METHOD CheckOverload
+VAR
+  tElapsed : TIME;
+END_VAR
+  IF ActualCurrent > RatedCurrent * 1.2 THEN
+    IF NOT _bOverloadDetected THEN
+      _tOverloadStartTime := CURRENT_DT;
+      _bOverloadDetected := TRUE;
+    ELSE
+      tElapsed := CURRENT_DT - _tOverloadStartTime;
+      IF tElapsed >= OverloadDelay THEN
+        SetFault(E_FaultCode.Overload);
+      END_IF
+    END_IF
+  ELSE
+    _bOverloadDetected := FALSE;
+  END_IF
+END_METHOD
+
+METHOD UpdateSpeedOutput
+VAR
+  rSpeed : REAL;
+END_VAR
+  // 速度限幅
+  rSpeed := LIMIT(0.0, SpeedPercent, 100.0);
+  
+  // 转换为模拟量输出
+  AO_Speed := UINT_TO_INT(rSpeed / 100.0 * 27648.0);
+  
+  // 避免频繁变化
+  IF ABS(rSpeed - _fLastSpeed) > 0.1 THEN
+    _fLastSpeed := rSpeed;
+  END_IF
+END_METHOD
+
+METHOD SafeStop
+VAR
+END_VAR
+  // 安全停止所有输出
+  AO_Speed := 0;
+  MotorRunning := FALSE;
+  MotorForward := FALSE;
+  MotorReverse := FALSE;
+  CurrentState := E_MotorState.Stopped;
+END_METHOD
+
+METHOD OVERRIDE Init
+VAR
+END_VAR
+  SUPER.Init();
+  
+  // 初始化电机特定变量
+  CurrentState := E_MotorState.Stopped;
+  _tOverloadStartTime := DT#1970-01-01-00:00:00.000;
+  _bOverloadDetected := FALSE;
+  _fLastSpeed := 0.0;
+  
+  // 初始化输出
+  AO_Speed := 0;
+  MotorRunning := FALSE;
+  MotorForward := FALSE;
+  MotorReverse := FALSE;
+END_METHOD
+      ]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

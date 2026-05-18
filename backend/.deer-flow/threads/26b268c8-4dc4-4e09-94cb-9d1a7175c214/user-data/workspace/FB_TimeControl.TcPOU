@@ -1,0 +1,28 @@
+FUNCTION_BLOCK FB_TimeControl
+VAR_INPUT
+    StartTime: TIME;                  // 酿造开始时间
+    CurrentTime: TIME;                // 当前时间
+    HopsDelay: TIME := T#5H;          // 啤酒花投放延迟(默认5小时)
+    FermentationDelay: TIME := T#48H; // 发酵启动延迟(默认48小时)
+END_VAR
+VAR_OUTPUT
+    HopsDispenser: BOOL;              // 啤酒花投放器输出
+    FermentationTank: BOOL;           // 发酵罐输出
+END_VAR
+VAR
+    v_ElapsedTime: TIME;              // 已流逝时间
+    v_TimeValid: BOOL;                // 时间有效性标志
+END_VAR
+
+// 检查时间输入有效性
+v_TimeValid := (StartTime > T#0S) AND (CurrentTime >= StartTime);
+
+// 计算已流逝时间
+v_ElapsedTime := CurrentTime - StartTime;
+
+// 啤酒花投放控制：酿造开始HopsDelay后激活
+HopsDispenser := v_TimeValid AND (v_ElapsedTime >= HopsDelay);
+
+// 发酵罐控制：酿造开始FermentationDelay后激活
+FermentationTank := v_TimeValid AND (v_ElapsedTime >= FermentationDelay);
+END_FUNCTION_BLOCK

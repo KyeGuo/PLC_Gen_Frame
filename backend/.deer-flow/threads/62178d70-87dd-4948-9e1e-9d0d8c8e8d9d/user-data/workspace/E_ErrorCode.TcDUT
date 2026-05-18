@@ -1,0 +1,8 @@
+TYPE E_ErrorCode :
+(
+    NO_ERROR := 0,
+    OVERLOAD := 1,
+    UNDER_VOLTAGE := 2,
+    OVER_TEMPERATURE := 3
+) DINT;
+END_TYPE

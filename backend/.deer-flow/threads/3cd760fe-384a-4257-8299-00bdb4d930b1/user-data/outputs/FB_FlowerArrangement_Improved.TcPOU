@@ -1,0 +1,43 @@
+FUNCTION_BLOCK FB_FlowerArrangement
+VAR_INPUT
+    FlowerTypeSensor : INT; (* 花型传感器输入：1=类型1，2=类型2，其他=无效 *)
+    FlowerColorSensor : INT; (* 花色传感器输入：1=红色，2=蓝色，其他=无效 *)
+END_VAR
+VAR_OUTPUT
+    ArrangingMechanism : INT; (* 插花机构输出：0=停止，1-4=不同插花模式 *)
+    ConveyorBelt : BOOL; (* 传送带控制：TRUE=运行，FALSE=停止 *)
+END_VAR
+VAR
+    CombinedSensorValue : INT; (* 组合传感器值，用于CASE语句 *)
+    ValidFlowerType : BOOL; (* 花型有效性标志 *)
+    ValidFlowerColor : BOOL; (* 花色有效性标志 *)
+END_VAR
+
+(* 验证传感器输入有效性 *)
+ValidFlowerType := (FlowerTypeSensor = 1) OR (FlowerTypeSensor = 2);
+ValidFlowerColor := (FlowerColorSensor = 1) OR (FlowerColorSensor = 2);
+
+(* 组合传感器值以便使用CASE语句 - 仅当输入有效时 *)
+IF ValidFlowerType AND ValidFlowerColor THEN
+    CombinedSensorValue := FlowerTypeSensor * 10 + FlowerColorSensor;
+ELSE
+    CombinedSensorValue := 0; // 无效组合标志
+END_IF;
+
+(* 根据花型和颜色组合选择插花模式 *)
+CASE CombinedSensorValue OF
+    11: 
+        ArrangingMechanism := 1;  // 类型1红色花：执行模式1插花动作
+    12: 
+        ArrangingMechanism := 2;  // 类型1蓝色花：执行模式2插花动作
+    21: 
+        ArrangingMechanism := 3;  // 类型2红色花：执行模式3插花动作
+    22: 
+        ArrangingMechanism := 4;  // 类型2蓝色花：执行模式4插花动作
+ELSE
+    ArrangingMechanism := 0;      // 无效组合或输入错误，停止机构
+END_CASE;
+
+(* 传送带控制：当插花机构运行时启动传送带 *)
+ConveyorBelt := (ArrangingMechanism <> 0);
+END_FUNCTION_BLOCK

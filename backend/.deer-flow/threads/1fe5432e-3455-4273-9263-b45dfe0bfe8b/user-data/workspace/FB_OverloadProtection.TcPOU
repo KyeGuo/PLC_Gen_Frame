@@ -1,0 +1,92 @@
+FUNCTION_BLOCK FB_OverloadProtection
+VAR_INPUT
+    rCurrent : LREAL;                   // 电机电流 (A)
+    rOverloadThreshold : LREAL := 10.0; // 过载阈值 (默认10A)
+    tDelayTime : TIME := T#5S;          // 过载延时 (默认5秒)
+    bReset : BOOL;                      // 复位命令
+    xEnable : BOOL := TRUE;             // 使能信号
+END_VAR
+VAR_OUTPUT
+    bOverloadFault : BOOL;              // 过载故障输出
+    bWarning : BOOL;                    // 过载警告 (达到阈值的90%)
+    rOverloadPercentage : LREAL;        // 过载百分比
+    tTimeToFault : TIME;                // 距离故障的剩余时间
+END_VAR
+VAR
+    tOverloadStartTime : DT;            // 过载开始时间
+    bOverloadActive : BOOL;             // 过载激活标志
+    tCycleTime : TIME;                  // 周期时间
+    tLastUpdate : DT;                   // 上次更新时间
+    bFirstCycle : BOOL := TRUE;         // 首次运行标志
+END_VAR
+METHOD UpdateOverloadDetection
+VAR
+    rThreshold90 : LREAL;
+END_VAR
+// 计算周期时间
+IF NOT bFirstCycle THEN
+    tCycleTime := DT_TO_TIME(DT_CURRENT() - tLastUpdate);
+ELSE
+    tCycleTime := T#10MS;
+    bFirstCycle := FALSE;
+END_IF
+
+// 更新上次更新时间
+tLastUpdate := DT_CURRENT();
+
+// 计算过载百分比
+rOverloadPercentage := (rCurrent / rOverloadThreshold) * 100.0;
+
+// 90%阈值警告
+rThreshold90 := rOverloadThreshold * 0.9;
+bWarning := (rCurrent > rThreshold90) AND xEnable;
+
+// 过载检测逻辑
+IF xEnable THEN
+    // 电流超过阈值
+    IF rCurrent > rOverloadThreshold THEN
+        // 过载开始
+        IF NOT bOverloadActive THEN
+            bOverloadActive := TRUE;
+            tOverloadStartTime := DT_CURRENT();
+        END_IF
+        
+        // 计算剩余时间
+        IF DT_TO_TIME(DT_CURRENT() - tOverloadStartTime) >= tDelayTime THEN
+            bOverloadFault := TRUE;
+            tTimeToFault := T#0S;
+        ELSE
+            tTimeToFault := tDelayTime - DT_TO_TIME(DT_CURRENT() - tOverloadStartTime);
+        END_IF
+    ELSE
+        // 电流低于阈值，重置过载状态
+        bOverloadActive := FALSE;
+        tTimeToFault := tDelayTime;
+        
+        // 故障复位（电流恢复正常后自动复位）
+        IF bOverloadFault THEN
+            // 滞回功能：电流低于阈值的80%才复位
+            IF rCurrent < rOverloadThreshold * 0.8 THEN
+                bOverloadFault := FALSE;
+            END_IF
+        END_IF
+    END_IF
+ELSE
+    // 未使能时重置所有状态
+    bOverloadFault := FALSE;
+    bWarning := FALSE;
+    bOverloadActive := FALSE;
+    tTimeToFault := tDelayTime;
+END_IF
+
+// 手动复位
+IF bReset THEN
+    bOverloadFault := FALSE;
+    bOverloadActive := FALSE;
+    tTimeToFault := tDelayTime;
+END_IF
+END_METHOD
+
+// FB主逻辑
+UpdateOverloadDetection();
+END_FUNCTION_BLOCK

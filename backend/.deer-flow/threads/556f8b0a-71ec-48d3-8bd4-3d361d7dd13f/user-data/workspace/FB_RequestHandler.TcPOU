@@ -1,0 +1,60 @@
+FUNCTION_BLOCK FB_RequestHandler
+VAR_IN
+    request : BOOL; // 请求信号
+    done : BOOL; // 完成信号
+END_VAR_IN
+VAR_OUT
+    listen : BOOL; // 监听模式指示
+END_VAR_OUT
+VAR
+    // 使用枚举类型替代整数状态，提高可读性和可维护性
+    eState : ERequestHandlerState := ERequestHandlerState.Listening; 
+END_VAR
+
+// 状态机逻辑
+CASE eState OF
+    ERequestHandlerState.Listening: // 监听状态
+        listen := TRUE;
+        IF request THEN
+            listen := FALSE;
+            eState := ERequestHandlerState.Processing;
+            // 重置done信号，确保下一次处理可以正确开始
+            done := FALSE;
+        END_IF;
+    
+    ERequestHandlerState.Processing: // 处理状态
+        listen := FALSE;
+        IF done THEN
+            listen := TRUE;
+            eState := ERequestHandlerState.Listening;
+        END_IF;
+    
+    ELSE: // 异常状态处理
+        listen := TRUE;
+        eState := ERequestHandlerState.Listening;
+END_CASE;
+
+// 形式化属性验证断言
+// 属性1: 当系统在监听状态且无请求时，保持监听模式
+ASSERT(eState = ERequestHandlerState.Listening AND NOT request) IMPLIES listen;
+
+// 属性2: 当系统在监听状态且收到请求时，切换到处理模式
+ASSERT(eState = ERequestHandlerState.Listening AND request AND NOT done) 
+IMPLIES (NOT listen AND eState = ERequestHandlerState.Processing);
+
+// 属性3: 当系统在处理状态且未完成时，保持处理状态
+ASSERT(eState = ERequestHandlerState.Processing AND NOT done) 
+IMPLIES (eState = ERequestHandlerState.Processing);
+
+// 属性4: 当系统在处理状态且完成时，切换回监听模式
+ASSERT(eState = ERequestHandlerState.Processing AND done) 
+IMPLIES (listen AND eState = ERequestHandlerState.Listening);
+END_FUNCTION_BLOCK
+
+// 状态枚举类型定义
+TYPE ERequestHandlerState :
+( 
+    Listening := 0, // 监听状态
+    Processing := 1 // 处理状态
+);
+END_TYPE

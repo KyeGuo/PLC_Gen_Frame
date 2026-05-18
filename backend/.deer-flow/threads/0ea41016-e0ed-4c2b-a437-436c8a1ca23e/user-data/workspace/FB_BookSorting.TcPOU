@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://infosys.beckhoff.com/TCPlcSchema">
+  <POU Name="FB_BookSorting" Id="{12345678-1234-1234-1234-123456789012}" CompositionName="PlcLogic" Category="04fb723b-0000-0000-0000-000000000000">
+    <Interface>
+      <InputVars>
+        <Var Name="RFID1" Type="BOOL" Comment="RFID1传感器，检测书籍是否到达分拣位置1" />
+        <Var Name="RFID2" Type="BOOL" Comment="RFID2传感器，检测书籍是否到达分拣位置2" />
+        <Var Name="RFID3" Type="BOOL" Comment="RFID3传感器，检测书籍是否到达分拣位置3" />
+      </InputVars>
+      <OutputVars>
+        <Var Name="Motor" Type="BOOL" Comment="分拣电机控制信号，TRUE表示启动电机" />
+        <Var Name="Bin1" Type="BOOL" Comment="分拣箱1控制信号，TRUE表示打开分拣箱1" />
+        <Var Name="Bin2" Type="BOOL" Comment="分拣箱2控制信号，TRUE表示打开分拣箱2" />
+        <Var Name="Bin3" Type="BOOL" Comment="分拣箱3控制信号，TRUE表示打开分拣箱3" />
+      </OutputVars>
+    </Interface>
+    <Implementation>
+      <ST>
+        // 书籍分拣功能块主逻辑
+        // 1. 电机控制逻辑: 任何RFID检测到书籍时启动电机
+        Motor := RFID1 OR RFID2 OR RFID3;
+
+        // 2. 分拣箱控制逻辑: 根据RFID检测结果打开对应箱子，同一时间只有一个箱子打开
+        // 优先级别: RFID1 > RFID2 > RFID3
+        Bin1 := RFID1 AND NOT (RFID2 OR RFID3);
+        Bin2 := RFID2 AND NOT (RFID1 OR RFID3);
+        Bin3 := RFID3 AND NOT (RFID1 OR RFID2);
+
+        // 形式化属性验证断言
+        // 属性1: 电机状态与RFID检测结果的一致性
+        ASSERT((RFID1 OR RFID2 OR RFID3) = Motor);
+
+        // 属性2: 同一时间最多只有一个箱子打开或全部关闭
+        ASSERT(
+          (Bin1 AND NOT Bin2 AND NOT Bin3) OR
+          (Bin2 AND NOT Bin1 AND NOT Bin3) OR
+          (Bin3 AND NOT Bin1 AND NOT Bin2) OR
+          (NOT Bin1 AND NOT Bin2 AND NOT Bin3)
+        );
+
+        // 属性3: 无书籍时所有设备处于关闭状态
+        ASSERT(
+          (RFID1 OR RFID2 OR RFID3) OR
+          (NOT Motor AND NOT Bin1 AND NOT Bin2 AND NOT Bin3)
+        );
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

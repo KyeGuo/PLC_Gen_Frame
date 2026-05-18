@@ -1,0 +1,111 @@
+FUNCTION_BLOCK FB_DroneChargingStation
+VAR_INPUT
+    Drone1BatteryLevel : INT := 0; (* Battery level of Drone 1 (0-100%) *)
+    Drone2BatteryLevel : INT := 0; (* Battery level of Drone 2 (0-100%) *)
+    Drone3BatteryLevel : INT := 0; (* Battery level of Drone 3 (0-100%) *)
+    ChargingTime : TIME := T#30s; (* Charging time required for each drone *)
+END_VAR
+VAR_OUTPUT
+    Drone1Status : BOOL := FALSE; (* Status of Drone 1 *)
+    Drone2Status : BOOL := FALSE; (* Status of Drone 2 *)
+    Drone3Status : BOOL := FALSE; (* Status of Drone 3 *)
+    ChargingStationStatus : BOOL := FALSE; (* Charging station status *)
+    DroneDeployed : BOOL := FALSE; (* Indicates if a drone is deployed *)
+END_VAR
+VAR
+    TimeRemaining : TIME := ChargingTime; (* Remaining charging time for the current charging operation *)
+    PrevChargingTime : TIME := T#0S; (* Previous charging time value *)
+    PrevStationStatus : BOOL := FALSE; (* Previous charging station status *)
+    LowBatteryDrone : BOOL := FALSE; (* Flag indicating low battery drone detected *)
+    ChargingStartTime : TIME; (* Start time of current charging operation *)
+END_VAR
+
+// Store previous values for edge detection
+PrevChargingTime := ChargingTime;
+PrevStationStatus := ChargingStationStatus;
+
+// 输入范围检查：确保电池电量值在0-100之间
+IF Drone1BatteryLevel < 0 THEN
+    Drone1BatteryLevel := 0;
+ELSIF Drone1BatteryLevel > 100 THEN
+    Drone1BatteryLevel := 100;
+END_IF
+
+IF Drone2BatteryLevel < 0 THEN
+    Drone2BatteryLevel := 0;
+ELSIF Drone2BatteryLevel > 100 THEN
+    Drone2BatteryLevel := 100;
+END_IF
+
+IF Drone3BatteryLevel < 0 THEN
+    Drone3BatteryLevel := 0;
+ELSIF Drone3BatteryLevel > 100 THEN
+    Drone3BatteryLevel := 100;
+END_IF
+
+// 紧急安全控制：充电时间为零时立即停止所有充电操作
+IF (ChargingTime = T#0S AND PrevChargingTime > T#0S AND PrevStationStatus) THEN
+  Drone1Status := FALSE;
+  Drone2Status := FALSE;
+  Drone3Status := FALSE;
+  ChargingStationStatus := FALSE;
+  TimeRemaining := T#0S;
+END_IF
+
+// 部署安全保障：低于10%电量阻止部署
+IF (Drone1BatteryLevel < 10 OR Drone2BatteryLevel < 10 OR Drone3BatteryLevel < 10) AND DroneDeployed THEN
+  DroneDeployed := FALSE;
+END_IF
+
+// 智能充电管理：按优先级处理低电量无人机
+LowBatteryDrone := FALSE;
+
+// Check Drone 1 first
+IF NOT Drone1Status AND Drone1BatteryLevel < 20 AND ChargingTime > T#0S AND NOT DroneDeployed THEN
+  Drone1Status := TRUE;
+  ChargingStartTime := TON(CURT); // Record current system time
+  TimeRemaining := ChargingTime;
+  ChargingStationStatus := TRUE;
+  LowBatteryDrone := TRUE;
+ELSIF Drone1Status THEN
+  // 使用系统时间计算剩余充电时间，提高计时准确性
+  TimeRemaining := ChargingTime - (TON(CURT) - ChargingStartTime);
+  IF TimeRemaining <= T#0S THEN
+    Drone1Status := FALSE;
+    ChargingStationStatus := FALSE;
+  END_IF
+END_IF
+
+// Check Drone 2 if no low battery drone found
+IF NOT LowBatteryDrone AND NOT Drone2Status AND Drone2BatteryLevel < 20 AND ChargingTime > T#0S AND NOT DroneDeployed THEN
+  Drone2Status := TRUE;
+  ChargingStartTime := TON(CURT); // Record current system time
+  TimeRemaining := ChargingTime;
+  ChargingStationStatus := TRUE;
+  LowBatteryDrone := TRUE;
+ELSIF Drone2Status THEN
+  // 使用系统时间计算剩余充电时间，提高计时准确性
+  TimeRemaining := ChargingTime - (TON(CURT) - ChargingStartTime);
+  IF TimeRemaining <= T#0S THEN
+    Drone2Status := FALSE;
+    ChargingStationStatus := FALSE;
+  END_IF
+END_IF
+
+// Check Drone 3 if no low battery drone found
+IF NOT LowBatteryDrone AND NOT Drone3Status AND Drone3BatteryLevel < 20 AND ChargingTime > T#0S AND NOT DroneDeployed THEN
+  Drone3Status := TRUE;
+  ChargingStartTime := TON(CURT); // Record current system time
+  TimeRemaining := ChargingTime;
+  ChargingStationStatus := TRUE;
+  LowBatteryDrone := TRUE;
+ELSIF Drone3Status THEN
+  // 使用系统时间计算剩余充电时间，提高计时准确性
+  TimeRemaining := ChargingTime - (TON(CURT) - ChargingStartTime);
+  IF TimeRemaining <= T#0S THEN
+    Drone3Status := FALSE;
+    ChargingStationStatus := FALSE;
+  END_IF
+END_IF
+
+END_FUNCTION_BLOCK

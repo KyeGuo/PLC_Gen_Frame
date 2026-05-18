@@ -1,0 +1,53 @@
+FUNCTION_BLOCK FB_HomeBrewingSystem
+VAR_INPUT
+    TemperatureSensor: REAL;           // 温度传感器输入
+    WaterFlowSensor: REAL;            // 水流传感器输入
+    BrewingStartTime: TIME;           // 酿造开始时间
+    BrewingDuration: TIME;            // 酿造总时长
+END_VAR
+VAR_OUTPUT
+    HeatingElement: BOOL;             // 加热元件输出
+    AgitationMotor: BOOL;             // 搅拌电机输出
+    HopsDispenser: BOOL;              // 啤酒花投放器输出
+    FermentationTank: BOOL;           // 发酵罐输出
+END_VAR
+VAR
+    v_ElapsedTime: TIME;              // 已酿造时间
+    v_IsBrewingActive: BOOL;          // 酿造激活状态
+    v_TemperatureValid: BOOL;         // 温度输入有效性
+    v_FlowValid: BOOL;                // 流量输入有效性
+    
+    // 子功能块实例
+    fb_TemperatureControl: FB_TemperatureControl;
+    fb_FlowControl: FB_FlowControl;
+    fb_TimeControl: FB_TimeControl;
+END_VAR
+
+// 输入有效性检查
+v_TemperatureValid := NOT(TemperatureSensor <> TemperatureSensor);
+v_FlowValid := NOT(WaterFlowSensor <> WaterFlowSensor);
+
+// 计算已酿造时间
+v_ElapsedTime := CURRENT_TIME - BrewingStartTime;
+v_IsBrewingActive := (v_ElapsedTime >= T#0S) AND (v_ElapsedTime < BrewingDuration);
+
+// 调用子功能块
+fb_TemperatureControl(ActualTemperature := TemperatureSensor, HeatingElement => HeatingElement);
+fb_FlowControl(ActualFlow := WaterFlowSensor, AgitationMotor => AgitationMotor);
+fb_TimeControl(StartTime := BrewingStartTime, CurrentTime := CURRENT_TIME, 
+              HopsDispenser => HopsDispenser, FermentationTank => FermentationTank);
+
+// 安全保护：酿造未激活时关闭所有输出
+IF NOT v_IsBrewingActive THEN
+    HeatingElement := FALSE;
+    AgitationMotor := FALSE;
+    HopsDispenser := FALSE;
+    FermentationTank := FALSE;
+END_IF
+
+// 输入无效时进入安全状态
+IF NOT(v_TemperatureValid AND v_FlowValid) THEN
+    HeatingElement := FALSE;
+    AgitationMotor := FALSE;
+END_IF
+END_FUNCTION_BLOCK

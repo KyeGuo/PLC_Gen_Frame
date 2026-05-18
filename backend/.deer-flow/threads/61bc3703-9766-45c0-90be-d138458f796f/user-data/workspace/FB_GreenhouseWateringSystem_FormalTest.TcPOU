@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TC/PLC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.beckhoff.com/TC/PLC ..\PlcXsd\TcPlcObject.xsd">
+  <POU Name="FB_GreenhouseWateringSystem_FormalTest" Id="{87654321-4321-4321-4321-098765432109}" Group="Greenhouse" Comment="Formal verification test bench for greenhouse watering system" Access="PUBLIC" ImplementationLanguage="ST" Category="002" IsProtected="false" UseTcStyle="true">
+    <Interface>
+      <Section Name="VAR_INPUT">
+      </Section>
+      <Section Name="VAR_OUTPUT">
+      </Section>
+      <Section Name="VAR">
+        <Member Name="WateringSystem" Datatype="FB_GreenhouseWateringSystem" />
+        <Member Name="TestMoisture" Datatype="REAL" />
+        <Member Name="TestDelay" Datatype="TIME" InitValue="T#5s" />
+      </Section>
+    </Interface>
+    <Implementation>
+      <ST>
+(* Test scenarios for formal verification *)
+
+(* Test 1: Humidity below 30% - should eventually turn on sprinklers *)
+TestMoisture := 25.0;
+WateringSystem(SoilMoistureSensor := TestMoisture, ResponseDelay := TestDelay);
+@Assert(WateringSystem.SprinklersOn OR (WateringSystem.TargetSprinklerState AND NOT WateringSystem.DelayTimer.Q));
+
+(* Test 2: Humidity above 70% - should eventually turn off sprinklers *)
+TestMoisture := 75.0;
+WateringSystem(SoilMoistureSensor := TestMoisture, ResponseDelay := TestDelay);
+@Assert(NOT WateringSystem.SprinklersOn OR (NOT WateringSystem.TargetSprinklerState AND NOT WateringSystem.DelayTimer.Q));
+
+(* Test 3: Humidity within hysteresis band - should maintain state *)
+TestMoisture := 50.0;
+WateringSystem(SoilMoistureSensor := TestMoisture, ResponseDelay := TestDelay);
+@Assert(WateringSystem.TargetSprinklerState = WateringSystem.SprinklersOn);
+
+(* Test 4: Input validation - ensure moisture is clamped to 0-100% *)
+TestMoisture := -10.0;
+WateringSystem(SoilMoistureSensor := TestMoisture, ResponseDelay := TestDelay);
+@Assert(WateringSystem.ValidatedMoisture = 0.0);
+
+TestMoisture := 110.0;
+WateringSystem(SoilMoistureSensor := TestMoisture, ResponseDelay := TestDelay);
+@Assert(WateringSystem.ValidatedMoisture = 100.0);
+
+(* Test 5: Reachability - sprinklers can be turned on *)
+@Assert(EXISTS TRUE : WateringSystem.SprinklersOn = TRUE);
+
+(* Test 6: Reachability - sprinklers can be turned off *)
+@Assert(EXISTS TRUE : WateringSystem.SprinklersOn = FALSE);
+
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

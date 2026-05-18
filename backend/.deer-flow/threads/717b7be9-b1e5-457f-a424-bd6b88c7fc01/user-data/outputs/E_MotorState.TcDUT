@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="E_MotorState" Id="{550e8400-e29b-41d4-a716-446655440002}" Type="ENUM">
+    <Declaration><![CDATA[TYPE
+  E_MotorState : (
+    STOPPED := 0, // 停止状态
+    STARTING := 1, // 启动过程
+    RUNNING := 2, // 运行状态
+    STOPPING := 3, // 停止过程
+    FAULT := 4, // 故障状态
+    OVERLOAD_WARNING := 5 // 过载预警
+  );
+END_TYPE]]></Declaration>
+    <LineIds Name="E_MotorState">
+      <LineId Id="1" Count="0" />
+    </LineIds>
+  </DUT>
+</TcPlcObject>

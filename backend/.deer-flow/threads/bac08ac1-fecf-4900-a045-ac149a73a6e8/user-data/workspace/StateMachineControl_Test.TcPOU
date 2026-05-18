@@ -1,0 +1,126 @@
+FUNCTION_BLOCK StateMachineControl_Test
+VAR_INPUT
+    cycleCount : INT;  // 循环计数
+END_VAR
+
+VAR_OUTPUT
+    testResult : BOOL;  // 测试结果，TRUE表示所有测试通过
+    testMessage : STRING;  // 测试消息
+END_VAR
+
+VAR
+    smc : StateMachineControl;
+    // 测试输入
+    testRequest : BOOL;
+    testDone : BOOL;
+    // 测试输出
+    testListen : BOOL;
+    // 测试状态
+    testState : INT;
+    // 测试步骤
+    testStep : INT := 0;
+    // 测试结果
+    testPassed : BOOL := TRUE;
+    testMsg : STRING := '';
+END_VAR
+
+// 调用被测功能块
+smc(request := testRequest, done := testDone, listen => testListen);
+testState := smc.state;
+
+// 测试逻辑
+CASE testStep OF
+    0:  // 初始化测试
+        testRequest := FALSE;
+        testDone := FALSE;
+        // 检查初始状态
+        IF testState <> 0 OR testListen <> TRUE THEN
+            testPassed := FALSE;
+            testMsg := '初始状态错误: state=' + INT_TO_STRING(testState) + ', listen=' + BOOL_TO_STRING(testListen);
+            testStep := 99;
+        ELSE
+            testMsg := '初始状态正常';
+            testStep := 1;
+        END_IF;
+    
+    1:  // 测试Idle到Processing转换
+        testRequest := TRUE;
+        testDone := FALSE;
+        // 检查状态转换
+        IF testState <> 1 OR testListen <> FALSE THEN
+            testPassed := FALSE;
+            testMsg := 'Idle到Processing转换错误: state=' + INT_TO_STRING(testState) + ', listen=' + BOOL_TO_STRING(testListen);
+            testStep := 99;
+        ELSE
+            testMsg := 'Idle到Processing转换正常';
+            testStep := 2;
+        END_IF;
+    
+    2:  // 测试Processing状态保持
+        testRequest := FALSE;
+        testDone := FALSE;
+        // 检查状态保持
+        IF testState <> 1 OR testListen <> FALSE THEN
+            testPassed := FALSE;
+            testMsg := 'Processing状态保持错误: state=' + INT_TO_STRING(testState) + ', listen=' + BOOL_TO_STRING(testListen);
+            testStep := 99;
+        ELSE
+            testMsg := 'Processing状态保持正常';
+            testStep := 3;
+        END_IF;
+    
+    3:  // 测试Processing到Idle转换
+        testRequest := FALSE;
+        testDone := TRUE;
+        // 检查状态转换
+        IF testState <> 0 OR testListen <> TRUE THEN
+            testPassed := FALSE;
+            testMsg := 'Processing到Idle转换错误: state=' + INT_TO_STRING(testState) + ', listen=' + BOOL_TO_STRING(testListen);
+            testStep := 99;
+        ELSE
+            testMsg := 'Processing到Idle转换正常';
+            testStep := 4;
+        END_IF;
+    
+    4:  // 测试同时触发request和done
+        testRequest := TRUE;
+        testDone := TRUE;
+        // 检查状态转换（应该转换到Processing）
+        IF testState <> 1 OR testListen <> FALSE THEN
+            testPassed := FALSE;
+            testMsg := '同时触发request和done时转换错误: state=' + INT_TO_STRING(testState) + ', listen=' + BOOL_TO_STRING(testListen);
+            testStep := 99;
+        ELSE
+            testMsg := '同时触发request和done时转换正常';
+            testStep := 5;
+        END_IF;
+    
+    5:  // 测试异常状态处理
+        // 直接设置state为异常值
+        smc.state := 2;
+        testRequest := FALSE;
+        testDone := FALSE;
+        // 下一个周期会处理异常
+        testStep := 6;
+    
+    6:  // 检查异常状态恢复
+        IF testState <> 0 OR testListen <> TRUE THEN
+            testPassed := FALSE;
+            testMsg := '异常状态恢复错误: state=' + INT_TO_STRING(testState) + ', listen=' + BOOL_TO_STRING(testListen);
+            testStep := 99;
+        ELSE
+            testMsg := '异常状态恢复正常';
+            testStep := 99;
+        END_IF;
+    
+    99:  // 测试完成
+        // 保持当前状态
+        testRequest := FALSE;
+        testDone := FALSE;
+END_CASE;
+
+// 设置输出结果
+testResult := testPassed;
+testMessage := testMsg + (IF testPassed THEN '，所有测试通过' ELSE '，测试失败');
+
+END_FUNCTION_BLOCK

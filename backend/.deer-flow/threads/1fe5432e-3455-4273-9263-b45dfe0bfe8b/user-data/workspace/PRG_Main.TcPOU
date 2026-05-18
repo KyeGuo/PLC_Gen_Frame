@@ -1,0 +1,165 @@
+PROGRAM PRG_Main
+VAR_GLOBAL
+    // 手动控制变量
+    bManualStart : BOOL := FALSE;       // 手动启动按钮
+    bManualStop : BOOL := FALSE;        // 手动停止按钮
+    bManualReset : BOOL := FALSE;       // 手动复位按钮
+    rManualSpeed : LREAL := 0.0;        // 手动速度设定
+    
+    // FB实例
+    fbMotorCtrl : FB_MotorControl;      // 电机控制FB实例
+    fbOverload : FB_OverloadProtection; // 过载保护FB实例
+    
+    // IO映射（示例）
+    // 数字输入
+    diStartButton : BOOL;               // 启动按钮 (硬件输入)
+    diStopButton : BOOL;                // 停止按钮 (硬件输入)
+    diResetButton : BOOL;               // 复位按钮 (硬件输入)
+    diEmergencyStop : BOOL;             // 急停按钮 (硬件输入)
+    
+    // 数字输出
+    doMotorRun : BOOL;                  // 电机运行输出 (硬件输出)
+    doMotorFault : BOOL;                // 电机故障输出 (硬件输出)
+    doWarningLight : BOOL;              // 警告灯输出 (硬件输出)
+    
+    // 模拟输入
+    aiCurrent : LREAL;                  // 电流传感器输入 (硬件输入)
+    aiTemperature : LREAL;              // 温度传感器输入 (硬件输入)
+    aiVoltage : LREAL;                  // 电压传感器输入 (硬件输入)
+    
+    // 模拟输出
+    aoSpeedSetpoint : LREAL;            // 速度设定输出 (硬件输出)
+    
+    // 诊断变量
+    stDiagnostics : DUT_MotorData;      // 诊断数据
+    tCycleCount : UDINT := 0;           // 周期计数
+    tProgramStartTime : DT;             // 程序启动时间
+    
+    // 参数配置
+    rOverloadThreshold : LREAL := 10.0; // 过载阈值 (A)
+    tOverloadDelay : TIME := T#5S;      // 过载延时
+    tRampTime : TIME := T#2S;           // 斜坡时间
+END_VAR
+VAR
+    bStartCommand : BOOL;               // 启动命令
+    bStopCommand : BOOL;                // 停止命令
+    bResetCommand : BOOL;               // 复位命令
+    rSpeedCommand : LREAL;              // 速度命令
+    
+    // 故障处理
+    bEmergencyStopActive : BOOL;        // 急停激活标志
+    bAnyFault : BOOL;                   // 任何故障激活标志
+END_VAR
+METHOD Initialize
+VAR
+END_VAR
+// 初始化程序
+IF tCycleCount = 0 THEN
+    tProgramStartTime := DT_CURRENT();
+    
+    // 初始化FB参数
+    fbMotorCtrl.tRampTime := tRampTime;
+    fbOverload.rOverloadThreshold := rOverloadThreshold;
+    fbOverload.tDelayTime := tOverloadDelay;
+END_IF
+
+tCycleCount := tCycleCount + 1;
+END_METHOD
+METHOD HandleInputs
+VAR
+END_VAR
+// 处理输入信号
+// 急停处理（常闭触点，低电平有效）
+bEmergencyStopActive := NOT diEmergencyStop;
+
+// 启动命令（上升沿触发）
+bStartCommand := diStartButton OR bManualStart;
+
+// 停止命令（上升沿触发）
+bStopCommand := diStopButton OR bManualStop;
+
+// 复位命令（上升沿触发）
+bResetCommand := diResetButton OR bManualReset;
+
+// 速度命令
+rSpeedCommand := rManualSpeed;
+
+// 使能控制
+fbMotorCtrl.xEnable := NOT bEmergencyStopActive;
+fbOverload.xEnable := NOT bEmergencyStopActive;
+END_METHOD
+METHOD UpdateFBs
+VAR
+END_VAR
+// 更新过载保护FB
+fbOverload(rCurrent := aiCurrent, 
+           bReset := bResetCommand);
+
+// 更新电机控制FB
+fbMotorCtrl(bStart := bStartCommand, 
+            bStop := bStopCommand, 
+            bReset := bResetCommand, 
+            rTargetSpeed := rSpeedCommand);
+
+// 设置电机控制FB的实时数据
+fbMotorCtrl.stMotorData.CurrentCurrent := aiCurrent;
+fbMotorCtrl.stMotorData.CurrentTemperature := aiTemperature;
+fbMotorCtrl.stMotorData.Voltage := aiVoltage;
+
+// 处理过载故障
+IF fbOverload.bOverloadFault THEN
+    fbMotorCtrl.stMotorData.ErrorCode := E_ErrorCode#OVERLOAD;
+    fbMotorCtrl.bFault := TRUE;
+END_IF
+
+// 处理急停故障
+IF bEmergencyStopActive THEN
+    fbMotorCtrl.stMotorData.ErrorCode := E_ErrorCode#EMERGENCY_STOP;
+    fbMotorCtrl.bFault := TRUE;
+END_IF
+END_METHOD
+METHOD HandleOutputs
+VAR
+END_VAR
+// 处理输出信号
+doMotorRun := fbMotorCtrl.bMotorRunning;
+doMotorFault := fbMotorCtrl.bFault;
+doWarningLight := fbOverload.bWarning OR fbMotorCtrl.bFault;
+
+// 速度设定输出（转换为0-10V或4-20mA）
+// 这里假设0-100%对应0-10V
+ aoSpeedSetpoint := fbMotorCtrl.stMotorData.CurrentSpeed * 0.1;
+END_METHOD
+METHOD UpdateDiagnostics
+VAR
+END_VAR
+// 更新诊断数据
+stDiagnostics := fbMotorCtrl.stMotorData;
+
+// 额外诊断信息
+stDiagnostics.CurrentCurrent := aiCurrent;
+stDiagnostics.CurrentTemperature := aiTemperature;
+stDiagnostics.Voltage := aiVoltage;
+
+// 故障汇总
+bAnyFault := fbMotorCtrl.bFault OR bEmergencyStopActive;
+END_METHOD
+METHOD DisplayDiagnostics
+VAR
+END_VAR
+// 诊断信息显示（可以在HMI上显示）
+// 这里只是示例，实际项目中会连接到HMI界面
+IF tCycleCount MOD 1000 = 0 THEN // 每10秒更新一次
+    // 输出到日志或HMI
+    // LogDiagnostics(stDiagnostics);
+END_IF
+END_METHOD
+
+// 主程序逻辑
+Initialize();
+HandleInputs();
+UpdateFBs();
+HandleOutputs();
+UpdateDiagnostics();
+DisplayDiagnostics();
+END_PROGRAM

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="GVL_TrafficLight" Type="GVL" ID="{00000000-0000-0000-0000-000000000000}" Version="1.0.0.0" Company="" Author="" Contact="" Comment="行人交通灯全局变量表">
+  <Declaration><Text><![CDATA[GVL_TrafficLight
+VAR_GLOBAL
+    // 行人交通灯功能块实例
+    fbPedestrianTrafficLight : FB_PedestrianTrafficLight;
+    
+    // 输入变量
+    xPedBtnPress : BOOL := FALSE;  // 行人按钮输入
+    
+    // 输出变量
+    xCarLightGreen : BOOL;  // 汽车绿灯输出
+    xPedLightGreen : BOOL;  // 行人绿灯输出
+    nTimeCounter : INT;     // 时间计数器输出
+END_VAR]]></Text></Declaration>
+  <Graph Name="" ID="{00000000-0000-0000-0000-000000000000}" UseFB="false" UseSFC="false" UseST="false" UseIL="false" UseFBD="false" UseLD="false" UseFC="false" IsPOU="false">
+    <FBD Name="" ID="{00000000-0000-0000-0000-000000000000}">
+      <Interface Inputs="0" Outputs="0" InOuts="0" />    </FBD>
+  </Graph>
+</POU>

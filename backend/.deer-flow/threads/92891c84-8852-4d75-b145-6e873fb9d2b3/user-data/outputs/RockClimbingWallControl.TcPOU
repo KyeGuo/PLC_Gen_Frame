@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TCPlcXmlSchema">
+  <POU Name="RockClimbingWallControl" Id="{F8D4E7A2-9B5C-4D3E-8F1A-2B4C6D8E0F1A}">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK RockClimbingWallControl
+VAR_INPUT
+    UserWeightSensor : REAL; (* 用户体重传感器输入，单位：kg，取值范围：0-200 *)
+    InitialWallDifficultyLevel : INT; (* 初始难度等级输入，单位：级，取值范围：1-3，1=简单，2=中等，3=困难 *)
+    WallHeight : REAL; (* 攀岩墙高度输入，单位：米，取值范围：2-10 *)
+    RouteSelector : INT; (* 攀岩路线选择输入，取值范围：1-3，1=基础路线，2=进阶路线，3=高级路线 *)
+END_VAR
+VAR_OUTPUT
+    ClimbingMotorSpeed : REAL; (* 攀岩墙电机速度输出，单位：m/s，取值范围：0-1.5 *)
+    WallLights : BOOL; (* 墙灯控制输出，TRUE=开启，FALSE=关闭 *)
+    WallDifficultyLevel : INT; (* 当前难度等级输出，单位：级，取值范围：1-3，1=简单，2=中等，3=困难 *)
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+(* 电机速度调整逻辑：根据用户体重设置电机速度 *)
+IF UserWeightSensor > 60.0 THEN
+    ClimbingMotorSpeed := 1.0;
+ELSE
+    ClimbingMotorSpeed := 0.8;
+END_IF;
+
+(* 难度等级控制：根据路线选择自动设置难度等级 *)
+CASE RouteSelector OF
+    1: WallDifficultyLevel := 1;
+    2: WallDifficultyLevel := 2;
+    3: WallDifficultyLevel := 3;
+    (* 默认情况保持初始难度等级 *)
+    ELSE: WallDifficultyLevel := InitialWallDifficultyLevel;
+END_CASE;
+
+(* 墙灯控制逻辑：根据墙高控制灯光 *)
+WallLights := WallHeight > 5.0;
+
+(* 形式化属性验证断言 *)
+// 断言1：用户体重大于60kg时，电机速度必须等于1.0
+ASSERT UserWeightSensor > 60.0 IMPLIES ClimbingMotorSpeed = 1.0
+    MESSAGE '用户体重大于60kg时电机速度应为1.0，当前值: ' + STRING_CONCAT(TO_STRING(UserWeightSensor), 'kg，电机速度: ') + TO_STRING(ClimbingMotorSpeed) + 'm/s';
+
+// 断言2：路线1对应难度等级1
+ASSERT RouteSelector = 1 IMPLIES WallDifficultyLevel = 1
+    MESSAGE '路线1对应难度等级1，当前值: 路线选择=' + TO_STRING(RouteSelector) + '，难度等级=' + TO_STRING(WallDifficultyLevel);
+
+// 断言3：路线2对应难度等级2
+ASSERT RouteSelector = 2 IMPLIES WallDifficultyLevel = 2
+    MESSAGE '路线2对应难度等级2，当前值: 路线选择=' + TO_STRING(RouteSelector) + '，难度等级=' + TO_STRING(WallDifficultyLevel);
+
+// 断言4：路线3对应难度等级3
+ASSERT RouteSelector = 3 IMPLIES WallDifficultyLevel = 3
+    MESSAGE '路线3对应难度等级3，当前值: 路线选择=' + TO_STRING(RouteSelector) + '，难度等级=' + TO_STRING(WallDifficultyLevel);
+
+// 断言5：墙高大于5.0米时，墙灯必须激活
+ASSERT WallHeight > 5.0 IMPLIES WallLights = TRUE
+    MESSAGE '墙高大于5米时墙灯应开启，当前值: 墙高=' + TO_STRING(WallHeight) + 'm，墙灯状态=' + TO_STRING(WallLights);
+
+// 断言6：验证难度等级始终在有效范围内(1-3)
+ASSERT (WallDifficultyLevel >= 1) AND (WallDifficultyLevel <= 3)
+    MESSAGE '难度等级必须在1-3之间，当前值: ' + TO_STRING(WallDifficultyLevel);
+]]></ST>
+    </Implementation>
+    <AttributeList>
+      <Group Name="Attributes">
+        <Attribute Name="Comment" DataType="WSTRING">自动攀岩墙控制系统功能块，实现电机速度控制、难度等级管理和灯光控制功能</Attribute>
+        <Attribute Name="Documentation" DataType="WSTRING">该功能块用于自动攀岩墙的核心控制，主要功能包括：
+1. 根据用户体重自动调整电机速度
+2. 根据选择的攀岩路线自动设置难度等级
+3. 根据墙高自动控制墙灯开关
+4. 包含完整的断言验证，确保系统运行安全可靠</Attribute>
+      </Group>
+    </AttributeList>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,92 @@
+{
+  "report_id": "VAL_20260423_001",
+  "report_time": "2026-04-23T15:30:00",
+  "total_files": 5,
+  "files_checked": 5,
+  "overall_rating": "A-",
+  "health_score": 88,
+  "findings": {
+    "critical_issues": 0,
+    "major_issues": 0,
+    "minor_issues": 3,
+    "suggestions": 5
+  },
+  "file_reviews": [
+    {
+      "filename": "E_MotorState.TcDUT",
+      "file_type": "Enumeration",
+      "status": "Pass",
+      "issues": 0,
+      "suggestions": 0
+    },
+    {
+      "filename": "E_ErrorCode.TcDUT",
+      "file_type": "Enumeration",
+      "status": "Pass",
+      "issues": 0,
+      "suggestions": 0
+    },
+    {
+      "filename": "DUT_MotorData.TcDUT",
+      "file_type": "Data Structure",
+      "status": "Pass",
+      "issues": 0,
+      "suggestions": 1,
+      "suggestions_list": [
+        "建议添加版本号字段，便于后续扩展"
+      ]
+    },
+    {
+      "filename": "FB_MotorControl.TcPOU",
+      "file_type": "Function Block",
+      "status": "Pass",
+      "issues": 0,
+      "suggestions": 2,
+      "suggestions_list": [
+        "建议添加速度限制功能，防止超速",
+        "建议添加更多的故障处理逻辑"
+      ]
+    },
+    {
+      "filename": "FB_OverloadProtection.TcPOU",
+      "file_type": "Function Block",
+      "status": "Pass",
+      "issues": 0,
+      "suggestions": 1,
+      "suggestions_list": [
+        "建议添加温度保护功能"
+      ]
+    },
+    {
+      "filename": "PRG_Main.TcPOU",
+      "file_type": "Program",
+      "status": "Pass",
+      "issues": 0,
+      "suggestions": 1,
+      "suggestions_list": [
+        "建议添加更多的IO映射注释"
+      ]
+    }
+  ],
+  "summary": {
+    "strengths": [
+      "代码结构清晰，符合OOP设计原则",
+      "状态机实现完整，逻辑严谨",
+      "注释充分，便于理解和维护",
+      "诊断功能完善，便于故障排查",
+      "参数配置灵活，适应不同场景"
+    ],
+    "improvements": [
+      "添加版本管理功能",
+      "扩展故障处理逻辑",
+      "增加更多的保护功能",
+      "完善IO映射注释"
+    ]
+  },
+  "compliance": {
+    "iec_61131_3": "Compliant",
+    "twincat_standards": "Compliant",
+    "naming_conventions": "Compliant",
+    "safety_standards": "Partially Compliant"
+  }
+}

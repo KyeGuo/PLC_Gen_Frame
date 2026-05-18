@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TC/PLC">
+  <POU Name="FB_MotorControl" Id="{FB_MotorControl_UID}" AdapterSource="" Generated="false" Internal="false" Namespace="Motor" Type="FunctionBlock" Category="2" Extends="FB_BaseControl" >
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_MotorControl EXTENDS FB_BaseControl
+VAR PUBLIC
+    (* 电机控制输入接口 *)
+    Start: BOOL; // 电机启动命令
+    Stop: BOOL; // 电机停止命令
+    Reverse: BOOL; // 正反转切换
+    SpeedSetpoint: REAL; // 速度设定值(0.0-100.0%)
+    
+    (* 反馈输入接口 *)
+    CurrentFeedback: REAL; // 电流反馈值(A)
+    TemperatureFeedback: REAL; // 温度反馈值(°C)
+    SpeedFeedback: REAL; // 速度反馈值(%);
+    
+    (* 保护参数 *)
+    OvercurrentThreshold: REAL := 10.0; // 过流阈值(A)
+    OvertemperatureThreshold: REAL := 80.0; // 过热阈值(°C)
+    OverloadCurrentThreshold: REAL := 8.0; // 过载电流阈值(A)
+    OverloadTimeThreshold: UDINT := 5000; // 过载时间阈值(ms)
+    ShortcircuitThreshold: REAL := 20.0; // 短路阈值(A)
+    
+    (* 电机控制输出接口 *)
+    MotorRunning: BOOL; // 电机运行状态
+    MotorDirection: BOOL; // 电机方向(TRUE=正转, FALSE=反转)
+    SpeedOutput: WORD; // 模拟量输出(0-27648)
+    
+    (* 诊断输出接口 *)
+    FaultHistory: ARRAY[0..9] OF ST_FaultRecord; // 故障历史记录
+    FaultHistoryCount: BYTE; // 故障记录数量
+    CurrentRunTime: UDINT; // 当前运行周期时间(ms)
+    
+    (* 配置参数 *)
+    RampRate: REAL := 1.0; // 斜坡速率(%/ms)
+    SpeedTolerance: REAL := 0.5; // 速度容差(%)
+END_VAR
+VAR PROTECTED
+    (* 内部状态变量 *)
+    _previousStart: BOOL;
+    _previousStop: BOOL;
+    _previousReverse: BOOL;
+    _currentSpeed: REAL;
+    _targetSpeed: REAL;
+    _overloadTimer: UDINT;
+    _rampActive: BOOL;
+    
+    (* 保护状态变量 *)
+    _overcurrentDetected: BOOL;
+    _overtemperatureDetected: BOOL;
+    _overloadDetected: BOOL;
+    _shortcircuitDetected: BOOL;
+    
+    (* 诊断变量 *)
+    _faultHistoryIndex: BYTE;
+    _lastFaultCode: WORD;
+    
+    (* SIL2安全变量 *)
+    _motorRunningRedundant: BOOL;
+    _speedOutputRedundant: WORD;
+END_VAR
+]]></Declaration>
+    <Implementation><![CDATA[
+METHOD FB_Init : BOOL
+VAR_INPUT
+    bInitRetains : BOOL;
+    bInCopyCode : BOOL;
+END_VAR
+    // 调用基类初始化
+    IF SUPER^.FB_Init(bInitRetains, bInCopyCode) THEN
+        // 初始化电机特定变量
+        MotorRunning := FALSE;
+        MotorDirection := TRUE;
+        SpeedOutput := 0;
+        FaultHistoryCount := 0;
+        _currentSpeed := 0.0;
+        _targetSpeed := 0.0;
+        _overloadTimer := 0;
+        _rampActive := FALSE;
+        _faultHistoryIndex := 0;
+        _lastFaultCode := 0;
+        _motorRunningRedundant := FALSE;
+        _speedOutputRedundant := 0;
+        
+        // 初始化故障历史
+        FOR i := 0 TO 9 DO
+            FaultHistory[i] := (
+                FaultCode := 0,
+                FaultTime := 0,
+                FaultActive := FALSE,
+                ResetTime := 0
+            );
+        END_FOR
+        
+        FB_Init := TRUE;
+    ELSE
+        FB_Init := FALSE;
+    END_IF
+END_METHOD
+
+METHOD Cyclic
+VAR
+    currentTime: UDINT;
+    speedError: REAL;
+END_VAR
+    // 调用基类循环处理
+    SUPER^.Cyclic();
+    
+    // 获取当前时间
+    currentTime := TON_Internal.PT;
+    
+    // 处理电机控制命令
+    ProcessControlCommands(currentTime);
+    
+    // 处理速度控制
+    ProcessSpeedControl(currentTime);
+    
+    // 处理保护功能
+    ProcessProtectionFunctions(currentTime);
+    
+    // 更新诊断信息
+    UpdateDiagnostics(currentTime);
+    
+    // SIL2安全：冗余检查
+    PerformSafetyChecks();
+    
+    // 更新输出变量
+    UpdateOutputs();
+END_METHOD
+
+METHOD PROTECTED ProcessControlCommands
+VAR_INPUT
+    currentTime: UDINT;
+END_VAR
+    // 处理启动命令
+    IF Start AND NOT _previousStart AND NOT FaultActive THEN
+        _targetSpeed := SpeedSetpoint;
+        _rampActive := TRUE;
+        // 基类使能
+        SUPER^.Enable := TRUE;
+    END_IF
+    
+    // 处理停止命令
+    IF Stop AND NOT _previousStop THEN
+        _targetSpeed := 0.0;
+        _rampActive := TRUE;
+        // 基类禁用
+        SUPER^.Enable := FALSE;
+    END_IF
+    
+    // 处理正反转切换
+    IF Reverse AND NOT _previousReverse THEN
+        MotorDirection := NOT MotorDirection;
+        // 记录方向变化到诊断
+        AddDiagnosticEvent(0, currentTime, 'Direction changed');
+    END_IF
+    
+    // 更新历史变量
+    _previousStart := Start;
+    _previousStop := Stop;
+    _previousReverse := Reverse;
+END_METHOD
+
+METHOD PROTECTED ProcessSpeedControl
+VAR_INPUT
+    currentTime: UDINT;
+VAR
+    speedStep: REAL;
+END_VAR
+    // 斜坡速度控制
+    IF _rampActive THEN
+        speedStep := RampRate * 1.0; // 1ms周期
+        
+        IF _currentSpeed < _targetSpeed - SpeedTolerance THEN
+            _currentSpeed := MIN(_currentSpeed + speedStep, _targetSpeed);
+        ELSIF _currentSpeed > _targetSpeed + SpeedTolerance THEN
+            _currentSpeed := MAX(_currentSpeed - speedStep, _targetSpeed);
+        ELSE
+            _rampActive := FALSE;
+        END_IF
+    END_IF
+    
+    // 限制速度范围
+    _currentSpeed := LIMIT(0.0, _currentSpeed, 100.0);
+    
+    // 转换为模拟量输出(0-27648)
+    SpeedOutput := WORD(_currentSpeed / 100.0 * 27648.0);
+END_METHOD
+
+METHOD PROTECTED ProcessProtectionFunctions
+VAR_INPUT
+    currentTime: UDINT;
+VAR
+    overloadActive: BOOL;
+END_VAR
+    // 过流保护
+    _overcurrentDetected := (CurrentFeedback > OvercurrentThreshold);
+    IF _overcurrentDetected THEN
+        SetMotorFault(101, currentTime);
+    END_IF
+    
+    // 过热保护
+    _overtemperatureDetected := (TemperatureFeedback > OvertemperatureThreshold);
+    IF _overtemperatureDetected THEN
+        SetMotorFault(102, currentTime);
+    END_IF
+    
+    // 过载保护
+    overloadActive := (CurrentFeedback > OverloadCurrentThreshold);
+    IF overloadActive THEN
+        _overloadTimer := _overloadTimer + 1;
+        IF _overloadTimer >= OverloadTimeThreshold THEN
+            _overloadDetected := TRUE;
+            SetMotorFault(103, currentTime);
+        END_IF
+    ELSE
+        _overloadTimer := 0;
+    END_IF
+    
+    // 短路保护
+    _shortcircuitDetected := (CurrentFeedback > ShortcircuitThreshold);
+    IF _shortcircuitDetected THEN
+        SetMotorFault(104, currentTime);
+    END_IF
+END_METHOD
+
+METHOD PROTECTED SetMotorFault
+VAR_INPUT
+    faultCode: WORD;
+    faultTime: UDINT;
+END_VAR
+    // 调用基类故障设置
+    SUPER^.SetFault(faultCode);
+    
+    // 添加到故障历史
+    AddFaultHistory(faultCode, faultTime);
+END_METHOD
+
+METHOD PROTECTED AddFaultHistory
+VAR_INPUT
+    faultCode: WORD;
+    faultTime: UDINT;
+VAR
+    i: BYTE;
+END_VAR
+    // 避免重复记录相同故障
+    IF faultCode = _lastFaultCode AND FaultActive THEN
+        RETURN;
+    END_IF
+    
+    // 移位历史记录
+    FOR i := 9 DOWNTO 1 DO
+        FaultHistory[i] := FaultHistory[i-1];
+    END_FOR
+    
+    // 添加新故障记录
+    FaultHistory[0] := (
+        FaultCode := faultCode,
+        FaultTime := faultTime,
+        FaultActive := TRUE,
+        ResetTime := 0
+    );
+    
+    // 更新计数
+    IF FaultHistoryCount < 10 THEN
+        FaultHistoryCount := FaultHistoryCount + 1;
+    END_IF
+    
+    // 更新最后故障码
+    _lastFaultCode := faultCode;
+END_METHOD
+
+METHOD PROTECTED UpdateDiagnostics
+VAR_INPUT
+    currentTime: UDINT;
+VAR
+    i: BYTE;
+END_VAR
+    // 更新故障激活状态
+    FOR i := 0 TO 9 DO
+        IF FaultHistory[i].FaultCode <> 0 AND NOT FaultActive THEN
+            FaultHistory[i].FaultActive := FALSE;
+            FaultHistory[i].ResetTime := currentTime;
+        END_IF
+    END_FOR
+    
+    // 记录当前运行时间
+    IF MotorRunning THEN
+        CurrentRunTime := CurrentRunTime + 1;
+    ELSE
+        CurrentRunTime := 0;
+    END_IF
+END_METHOD
+
+METHOD PROTECTED PerformSafetyChecks
+VAR
+    speedOutputError: BOOL;
+    runningStateError: BOOL;
+END_VAR
+    // SIL2安全：冗余检查
+    speedOutputError := (SpeedOutput <> _speedOutputRedundant) AND ABS(REAL(SpeedOutput) - REAL(_speedOutputRedundant)) > 1.0;
+    runningStateError := (MotorRunning <> _motorRunningRedundant);
+    
+    IF speedOutputError OR runningStateError THEN
+        SUPER^.SetFault(201); // 输出不一致故障
+    END_IF
+    
+    // 更新冗余变量
+    _speedOutputRedundant := SpeedOutput;
+    _motorRunningRedundant := MotorRunning;
+END_METHOD
+
+METHOD PROTECTED UpdateOutputs
+    // 更新电机运行状态
+    MotorRunning := (SUPER^.Status = E_ControlStatus.Running) AND NOT FaultActive AND (_currentSpeed > SpeedTolerance);
+    
+    // 更新基类状态字
+    CASE SUPER^.Status OF
+        E_ControlStatus.Running:
+            SUPER^._statusWordBits.Running := MotorRunning;
+        E_ControlStatus.Fault:
+            SUPER^._statusWordBits.Fault := TRUE;
+        ELSE
+            // 保持基类状态
+    END_CASE
+END_METHOD
+
+METHOD PROTECTED AddDiagnosticEvent
+VAR_INPUT
+    eventCode: WORD;
+    eventTime: UDINT;
+    eventDescription: STRING;
+END_VAR
+    // 诊断事件记录（可扩展）
+    // 此处可添加到更详细的诊断日志系统
+END_METHOD
+END_FUNCTION_BLOCK
+]]></Implementation>
+  </POU>
+  <DataTypes>
+    <DataType Name="ST_FaultRecord" Id="{ST_FaultRecord_UID}" Type="Struct" >
+      <Declaration><![CDATA[
+TYPE ST_FaultRecord:
+STRUCT
+    FaultCode: WORD; // 故障码
+    FaultTime: UDINT; // 故障发生时间(ms)
+    FaultActive: BOOL; // 故障是否激活
+    ResetTime: UDINT; // 故障复位时间(ms)
+END_STRUCT
+END_TYPE
+]]></Declaration>
+    </DataType>
+  </DataTypes>
+  <Attributes>
+    <Attribute Name="TcPlcVersion" Version="3.1.4024.0"/>
+  </Attributes>
+</TcPlcObject>

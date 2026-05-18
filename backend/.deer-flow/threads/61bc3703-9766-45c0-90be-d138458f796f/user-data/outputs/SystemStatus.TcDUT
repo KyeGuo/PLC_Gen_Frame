@@ -1,0 +1,9 @@
+TYPE SystemStatus :
+STRUCT
+    MoistureValue : REAL;           (* 当前湿度值 *)
+    MoistureState : MoistureState;  (* 湿度状态 *)
+    SprinklerState : BOOL;          (* 喷淋器状态 *)
+    DelayActive : BOOL;             (* 延迟是否激活 *)
+    TimeRemaining : TIME;           (* 剩余延迟时间 *)
+END_STRUCT
+END_TYPE

@@ -1,0 +1,198 @@
+FUNCTION_BLOCK FB_MotorControl
+VAR_INPUT
+    bStart : BOOL;                      // 启动命令
+    bStop : BOOL;                       // 停止命令
+    bReset : BOOL;                      // 复位命令
+    rTargetSpeed : LREAL;               // 目标速度 (0-100%)
+    tRampTime : TIME := T#2S;           // 斜坡时间 (默认2秒)
+    xEnable : BOOL := TRUE;             // 使能信号
+END_VAR
+VAR_OUTPUT
+    stMotorData : DUT_MotorData;        // 电机数据输出
+    bMotorRunning : BOOL;               // 电机运行状态
+    bFault : BOOL;                      // 故障状态
+END_VAR
+VAR
+    // 状态机变量
+    eCurrentState : E_MotorState := E_MotorState#STOPPED;
+    ePreviousState : E_MotorState := E_MotorState#STOPPED;
+    
+    // 斜坡控制变量
+    rSpeedSetpoint : LREAL := 0.0;      // 速度设定点
+    rRampRate : LREAL;                  // 斜坡速率 (%/ms)
+    tLastUpdate : DT;                   // 上次更新时间
+    
+    // 诊断变量
+    tRunStartTime : DT;                 // 运行开始时间
+    bFirstCycle : BOOL := TRUE;         // 首次运行标志
+END_VAR
+METHOD UpdateStateMachine
+VAR
+    tCycleTime : TIME;
+END_VAR
+// 计算周期时间
+IF NOT bFirstCycle THEN
+    tCycleTime := DT_TO_TIME(DT_CURRENT() - tLastUpdate);
+ELSE
+    tCycleTime := T#10MS;
+    bFirstCycle := FALSE;
+END_IF
+
+// 更新上次更新时间
+tLastUpdate := DT_CURRENT();
+
+// 状态转移逻辑
+CASE eCurrentState OF
+    E_MotorState#STOPPED:
+        // 停止状态
+        bMotorRunning := FALSE;
+        stMotorData.MotorState := E_MotorState#STOPPED;
+        
+        // 更新运行时间（如果之前在运行）
+        IF ePreviousState = E_MotorState#RUNNING THEN
+            stMotorData.TotalRunTime := stMotorData.TotalRunTime + DT_TO_TIME(DT_CURRENT() - tRunStartTime);
+        END_IF
+        
+        // 启动命令
+        IF bStart AND xEnable AND NOT bFault THEN
+            eCurrentState := E_MotorState#STARTING;
+            stMotorData.StartCount := stMotorData.StartCount + 1;
+            tRunStartTime := DT_CURRENT();
+        END_IF
+        
+        // 复位故障
+        IF bReset THEN
+            bFault := FALSE;
+            stMotorData.IsFaultActive := FALSE;
+            stMotorData.ErrorCode := E_ErrorCode#NO_ERROR;
+        END_IF
+        
+    E_MotorState#STARTING:
+        // 启动中状态
+        stMotorData.MotorState := E_MotorState#STARTING;
+        
+        // 计算斜坡速率
+        rRampRate := 100.0 / (TIME_TO_MS(tRampTime) / TIME_TO_MS(tCycleTime));
+        
+        // 加速过程
+        rSpeedSetpoint := rSpeedSetpoint + rRampRate;
+        IF rSpeedSetpoint >= rTargetSpeed THEN
+            rSpeedSetpoint := rTargetSpeed;
+            eCurrentState := E_MotorState#RUNNING;
+        END_IF
+        
+        // 停止命令
+        IF bStop THEN
+            eCurrentState := E_MotorState#STOPPING;
+        END_IF
+        
+        // 故障检测
+        IF bFault THEN
+            eCurrentState := E_MotorState#FAULT;
+        END_IF
+        
+    E_MotorState#RUNNING:
+        // 运行状态
+        bMotorRunning := TRUE;
+        stMotorData.MotorState := E_MotorState#RUNNING;
+        
+        // 计算斜坡速率
+        rRampRate := 100.0 / (TIME_TO_MS(tRampTime) / TIME_TO_MS(tCycleTime));
+        
+        // 速度调节
+        IF rSpeedSetpoint < rTargetSpeed THEN
+            rSpeedSetpoint := rSpeedSetpoint + rRampRate;
+            IF rSpeedSetpoint > rTargetSpeed THEN
+                rSpeedSetpoint := rTargetSpeed;
+            END_IF
+        ELSIF rSpeedSetpoint > rTargetSpeed THEN
+            rSpeedSetpoint := rSpeedSetpoint - rRampRate;
+            IF rSpeedSetpoint < rTargetSpeed THEN
+                rSpeedSetpoint := rTargetSpeed;
+            END_IF
+        END_IF
+        
+        // 停止命令
+        IF bStop THEN
+            eCurrentState := E_MotorState#STOPPING;
+        END_IF
+        
+        // 故障检测
+        IF bFault THEN
+            eCurrentState := E_MotorState#FAULT;
+        END_IF
+        
+        // 使能关闭
+        IF NOT xEnable THEN
+            eCurrentState := E_MotorState#STOPPING;
+        END_IF
+        
+    E_MotorState#STOPPING:
+        // 停止中状态
+        stMotorData.MotorState := E_MotorState#STOPPING;
+        
+        // 计算斜坡速率
+        rRampRate := 100.0 / (TIME_TO_MS(tRampTime) / TIME_TO_MS(tCycleTime));
+        
+        // 减速过程
+        rSpeedSetpoint := rSpeedSetpoint - rRampRate;
+        IF rSpeedSetpoint <= 0.0 THEN
+            rSpeedSetpoint := 0.0;
+            eCurrentState := E_MotorState#STOPPED;
+        END_IF
+        
+        // 故障检测
+        IF bFault THEN
+            eCurrentState := E_MotorState#FAULT;
+        END_IF
+        
+    E_MotorState#FAULT:
+        // 故障状态
+        bMotorRunning := FALSE;
+        stMotorData.MotorState := E_MotorState#FAULT;
+        bFault := TRUE;
+        stMotorData.IsFaultActive := TRUE;
+        
+        // 记录故障信息
+        IF ePreviousState <> E_MotorState#FAULT THEN
+            stMotorData.LastFaultTime := DT_CURRENT();
+            stMotorData.LastFaultCode := stMotorData.ErrorCode;
+        END_IF
+        
+        // 停止速度
+        rSpeedSetpoint := 0.0;
+        
+        // 复位命令
+        IF bReset THEN
+            eCurrentState := E_MotorState#STOPPED;
+            bFault := FALSE;
+            stMotorData.IsFaultActive := FALSE;
+            stMotorData.ErrorCode := E_ErrorCode#NO_ERROR;
+        END_IF
+END_CASE;
+
+// 更新先前状态
+IF eCurrentState <> ePreviousState THEN
+    ePreviousState := eCurrentState;
+END_IF;
+
+// 更新输出数据
+stMotorData.CurrentSpeed := rSpeedSetpoint;
+stMotorData.TargetSpeed := rTargetSpeed;
+stMotorData.RampTime := tRampTime;
+END_METHOD
+
+METHOD UpdateDiagnostics
+VAR
+END_VAR
+// 更新运行时间（如果在运行状态）
+IF eCurrentState = E_MotorState#RUNNING THEN
+    stMotorData.TotalRunTime := stMotorData.TotalRunTime + DT_TO_TIME(DT_CURRENT() - tRunStartTime);
+    tRunStartTime := DT_CURRENT();
+END_IF
+END_METHOD
+
+// FB主逻辑
+UpdateStateMachine();
+UpdateDiagnostics();
+END_FUNCTION_BLOCK

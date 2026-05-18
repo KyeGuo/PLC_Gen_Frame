@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<DataType xmlns="http://infosys.beckhoff.com/TC3/DataType" Name="E_MotorState" Category="Enumeration" Version="1.0.0.0">
+  <Description>电机运行状态枚举</Description>
+  <EnumDeclaration>
+    <EnumEntry Name="STOPPED" Value="0" Description="停止状态"/>
+    <EnumEntry Name="STARTING" Value="1" Description="启动过程中"/>
+    <EnumEntry Name="RUNNING" Value="2" Description="正常运行中"/>
+    <EnumEntry Name="STOPPING" Value="3" Description="停止过程中"/>
+    <EnumEntry Name="FAULT" Value="4" Description="故障状态"/>
+  </EnumDeclaration>
+  <Attributes>
+    <Attribute Name="TcVersion" Value="3.1.4024.17"/>
+    <Attribute Name="Guid" Value="{A1B2C3D4-5678-90EF-1234-567890ABCDEF}"/>
+  </Attributes>
+</DataType>

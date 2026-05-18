@@ -1,0 +1,21 @@
+PROGRAM MAIN
+VAR
+END_VAR
+
+// 调用行人交通灯功能块
+fbPedestrianTrafficLight(
+    pedBtnPress := xPedBtnPress,
+    carLightIsGreen => xCarLightGreen,
+    pedLightIsGreen => xPedLightGreen,
+    TimeCounter => nTimeCounter
+);
+
+// 可选：添加调试输出
+// IF xCarLightGreen THEN
+//     // 汽车绿灯亮
+// END_IF
+// IF xPedLightGreen THEN
+//     // 行人绿灯亮
+// END_IF
+
+END_PROGRAM

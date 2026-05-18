@@ -1,0 +1,54 @@
+// 自动化图书馆书籍分拣系统全局变量列表
+
+// ------------------------------
+// 输入变量区（与现场设备关联）
+// ------------------------------
+GVL
+VAR_GLOBAL
+    // RFID阅读器输入
+    RFID1 : BOOL := FALSE; // 阅读器1检测信号
+    RFID2 : BOOL := FALSE; // 阅读器2检测信号
+    RFID3 : BOOL := FALSE; // 阅读器3检测信号
+END_VAR
+
+// ------------------------------
+// 输出变量区（与现场设备关联）
+// ------------------------------
+VAR_GLOBAL
+    // 执行机构输出
+    Motor : BOOL := FALSE; // 传送带电机控制
+    Bin1 : BOOL := FALSE; // 分拣箱1控制
+    Bin2 : BOOL := FALSE; // 分拣箱2控制
+    Bin3 : BOOL := FALSE; // 分拣箱3控制
+END_VAR
+
+// ------------------------------
+// 系统状态变量区
+// ------------------------------
+VAR_GLOBAL
+    // 系统运行状态
+    SystemRunning : BOOL := FALSE; // 系统运行状态
+    ErrorStatus : BOOL := FALSE; // 系统故障状态
+    
+    // 统计信息
+    BooksSortedTotal : UINT := 0; // 总分拣书籍数量
+    BooksBin1 : UINT := 0; // Bin1分拣数量
+    BooksBin2 : UINT := 0; // Bin2分拣数量
+    BooksBin3 : UINT := 0; // Bin3分拣数量
+END_VAR
+
+// ------------------------------
+// 配置参数区
+// ------------------------------
+VAR_GLOBAL CONSTANT
+    // 电机参数
+    MotorAcceleration : TIME := T#100MS; // 电机加速时间
+    MotorDeceleration : TIME := T#100MS; // 电机减速时间
+    
+    // 分拣延迟参数
+    SortingDelay : TIME := T#500MS; // 书籍到达分拣点延迟时间
+    
+    // 优先级配置
+    RFIDPriority : ARRAY[1..3] OF INT := [1, 2, 3]; // RFID优先级配置
+END_VAR
+END_GVL

@@ -1,0 +1,36 @@
+FUNCTION_BLOCK FB_FlowerArrangement
+VAR_INPUT
+    FlowerTypeSensor : INT; (* 花型传感器输入：1=类型1，2=类型2，其他=无效 *)
+    FlowerColorSensor : INT; (* 花色传感器输入：1=红色，2=蓝色，其他=无效 *)
+END_VAR
+VAR_OUTPUT
+    ArrangingMechanism : INT; (* 插花机构输出：0=停止，1-4=不同插花模式 *)
+    ConveyorBelt : BOOL; (* 传送带控制：TRUE=运行，FALSE=停止 *)
+END_VAR
+VAR
+    CombinedSensorValue : INT; (* 组合传感器值，用于CASE语句 *)
+END_VAR
+
+(* 输入变量范围验证 *)
+IF NOT (FlowerTypeSensor IN [1, 2]) OR NOT (FlowerColorSensor IN [1, 2]) THEN
+    ArrangingMechanism := 0;  // 无效输入，停止机构
+    ConveyorBelt := FALSE;    // 停止传送带
+    RETURN;                  // 跳过后续逻辑
+END_IF;
+
+(* 组合传感器值以便使用CASE语句 *)
+CombinedSensorValue := FlowerTypeSensor * 10 + FlowerColorSensor;
+
+(* 根据花型和颜色组合选择插花模式 *)
+CASE CombinedSensorValue OF
+    11: ArrangingMechanism := 1;  // 类型1红色花
+    12: ArrangingMechanism := 2;  // 类型1蓝色花
+    21: ArrangingMechanism := 3;  // 类型2红色花
+    22: ArrangingMechanism := 4;  // 类型2蓝色花
+ELSE
+    ArrangingMechanism := 0;      // 无效组合，停止机构
+END_CASE;
+
+(* 传送带控制：当插花机构运行时启动传送带 *)
+ConveyorBelt := (ArrangingMechanism <> 0);
+END_FUNCTION_BLOCK

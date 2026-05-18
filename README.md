@@ -81,7 +81,28 @@ source .venv/bin/activate  # Linux/Mac
 pip install -e .
 ```
 
-4. **安装 TwinCAT Validator MCP 工具**
+4. **安装 Agents4PLC 基准测试数据集**
+
+本框架使用 Agents4PLC_release 作为基准测试数据集。需要将其克隆到项目同级目录：
+
+```bash
+cd ..
+git clone https://github.com/Luoji-zju/Agents4PLC_release.git
+cd deer-flow/backend
+```
+
+数据集目录结构要求：
+```
+Project/
+├── deer-flow/           # 本框架
+└── Agents4PLC_release/  # 基准测试数据集（必须在此位置）
+    ├── benchmark_v2/    # 包含 medium.jsonl, hard.jsonl, high-fidelity.jsonl
+    ├── api/             # API 接口定义
+    ├── server.py        # 基准测试服务
+    └── ...
+```
+
+5. **安装 TwinCAT Validator MCP 工具**
 ```bash
 # 假设 twincat-validator-mcp 在同级目录
 cd ..
@@ -91,7 +112,7 @@ pip install -e .
 cd ../deer-flow/backend
 ```
 
-5. **安装前端依赖**
+6. **安装前端依赖**
 ```bash
 cd ../../frontend
 npm install
@@ -229,9 +250,16 @@ cd frontend
 npm run dev
 ```
 
-3. **访问应用**
+3. **启动基准测试服务**（新开一个终端）
+```bash
+cd ../Agents4PLC_release
+python server.py
+```
+
+4. **访问应用**
 - 前端地址：http://localhost:3000
 - 后端 API：http://localhost:8001
+- 基准测试 API：http://localhost:5000
 
 ## 使用指南
 

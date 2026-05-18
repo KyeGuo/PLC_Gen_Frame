@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_MotorControl" Id="{3f152882-543f-e3a5-e61f-0ccbc4ba568c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_MotorControl
+VAR_INPUT
+  bStart : BOOL; (* 启动指令 (上升沿触发) *)
+  bStop : BOOL; (* 停止指令 (立即生效) *)
+  fSpeedSetpoint : REAL; (* 速度给定 (0.0-100.0%) *)
+  stParameters : DUT_MotorParameters; (* 电机参数配置 *)
+  bFaultReset : BOOL; (* 故障复位指令 *)
+END_VAR
+VAR_OUTPUT
+  eMotorState : E_MotorState; (* 电机当前状态 *)
+  fActualSpeed : REAL; (* 实际输出速度 (%) *)
+  eCurrentError : E_MotorError; (* 当前错误码 *)
+  bRunning : BOOL; (* 运行状态指示 *)
+  bFault : BOOL; (* 故障状态指示 *)
+END_VAR
+VAR
+  bStartEdge : BOOL; (* 启动指令上升沿检测 *)
+  bStartLast : BOOL; (* 上周期启动指令状态 *)
+  tStartupTimer : TON; (* 启动延时定时器 *)
+  tStopTimer : TON; (* 停止延时定时器 *)
+  fSpeedTarget : REAL; (* 速度目标值 *)
+  nCycleCounter : INT; (* 循环计数器 *)
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* 上升沿检测 *)
+bStartEdge := bStart AND NOT bStartLast;
+bStartLast := bStart;
+
+(* 故障复位处理 *)
+IF bFaultReset THEN
+  eCurrentError := E_MotorError#NO_ERROR;
+  bFault := FALSE;
+END_IF
+
+(* 状态机控制 *)
+CASE eMotorState OF
+  E_MotorState#STOPPED:
+    (* 停止状态逻辑 *)
+    fActualSpeed := 0.0;
+    bRunning := FALSE;
+    fSpeedTarget := 0.0;
+
+    (* 启动指令处理 *)
+    IF bStartEdge AND NOT bFault THEN
+      eMotorState := E_MotorState#STARTING;
+      tStartupTimer(IN := TRUE, PT := stParameters.nStartupDelay);
+    END_IF
+
+    (* 故障状态复位 *)
+    IF bFault THEN
+      eMotorState := E_MotorState#FAULT;
+    END_IF
+
+  E_MotorState#STARTING:
+    (* 启动过程逻辑 *)
+    bRunning := TRUE;
+
+    (* 启动延时完成 *)
+    IF tStartupTimer.Q THEN
+      eMotorState := E_MotorState#RUNNING;
+      fSpeedTarget := fSpeedSetpoint;
+    END_IF
+
+    (* 停止指令处理 *)
+    IF bStop THEN
+      eMotorState := E_MotorState#STOPPING;
+      tStopTimer(IN := TRUE, PT := stParameters.nStopDelay);
+    END_IF
+
+  E_MotorState#RUNNING:
+    (* 运行状态逻辑 *)
+    bRunning := TRUE;
+
+    (* 更新速度目标 *)
+    fSpeedTarget := LIMIT(MIN := 0.0, VAL := fSpeedSetpoint, MAX := 100.0);
+
+    (* 速度平滑调节 *)
+    IF fActualSpeed < fSpeedTarget THEN
+      fActualSpeed := fActualSpeed + 0.1; (* 加速斜率 0.1%/ms *)
+      IF fActualSpeed > fSpeedTarget THEN
+        fActualSpeed := fSpeedTarget;
+      END_IF
+    ELSIF fActualSpeed > fSpeedTarget THEN
+      fActualSpeed := fActualSpeed - 0.1; (* 减速斜率 0.1%/ms *)
+      IF fActualSpeed < fSpeedTarget THEN
+        fActualSpeed := fSpeedTarget;
+      END_IF
+    END_IF
+
+    (* 停止指令处理 *)
+    IF bStop THEN
+      eMotorState := E_MotorState#STOPPING;
+      tStopTimer(IN := TRUE, PT := stParameters.nStopDelay);
+    END_IF
+
+    (* 速度范围检查 *)
+    IF fSpeedSetpoint < 0.0 OR fSpeedSetpoint > 100.0 THEN
+      eCurrentError := E_MotorError#SPEED_OUT_OF_RANGE;
+      bFault := TRUE;
+      eMotorState := E_MotorState#FAULT;
+    END_IF
+
+  E_MotorState#STOPPING:
+    (* 停止过程逻辑 *)
+    bRunning := TRUE;
+
+    (* 停止延时完成 *)
+    IF tStopTimer.Q THEN
+      eMotorState := E_MotorState#STOPPED;
+      fActualSpeed := 0.0;
+    END_IF
+
+    (* 停止过程速度递减 *)
+    fActualSpeed := fActualSpeed - 0.1;
+    IF fActualSpeed < 0.0 THEN
+      fActualSpeed := 0.0;
+    END_IF
+
+  E_MotorState#FAULT:
+    (* 故障状态逻辑 *)
+    fActualSpeed := 0.0;
+    bRunning := FALSE;
+    bFault := TRUE;
+
+    (* 故障复位处理 *)
+    IF bFaultReset THEN
+      eMotorState := E_MotorState#STOPPED;
+      eCurrentError := E_MotorError#NO_ERROR;
+      bFault := FALSE;
+    END_IF
+END_CASE
+
+(* 安全停止优先 *)
+IF bStop THEN
+  tStartupTimer(IN := FALSE);
+  IF eMotorState <> E_MotorState#STOPPED AND eMotorState <> E_MotorState#FAULT THEN
+    eMotorState := E_MotorState#STOPPING;
+    tStopTimer(IN := TRUE, PT := stParameters.nStopDelay);
+  END_IF
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_MotorControl">
+      <LineId Id="1" Count="97" />
+    </LineIds>
+</POU>
+</TcPlcObject>

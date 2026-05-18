@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="4.2.0.19">
+  <TcPOU Name="FB_IngredientChecker" Id="{C3D4E5F6-A7B8-9012-CDEF-3456789012CD}">
+    <Interface>
+      <POUType>FunctionBlock</POUType>
+      <ImplementationLanguage>ST</ImplementationLanguage>
+      <IOs>
+        <Input Name="i_xBananaAvailable" Datatype="BOOL" Comment="香蕉原料是否可用" />
+        <Input Name="i_xBerryMixAvailable" Datatype="BOOL" Comment="混合莓原料是否可用" />
+        <Input Name="i_xSpinachAvailable" Datatype="BOOL" Comment="菠菜原料是否可用" />
+        <Input Name="i_xYogurtAvailable" Datatype="BOOL" Comment="酸奶原料是否可用" />
+        <Input Name="i_xRequiredBanana" Datatype="BOOL" Comment="是否需要香蕉" />
+        <Input Name="i_xRequiredBerryMix" Datatype="BOOL" Comment="是否需要混合莓" />
+        <Input Name="i_xRequiredSpinach" Datatype="BOOL" Comment="是否需要菠菜" />
+        <Input Name="i_xRequiredYogurt" Datatype="BOOL" Comment="是否需要酸奶" />
+        <Output Name="q_xAllIngredientsAvailable" Datatype="BOOL" Comment="所有所需原料是否可用" />
+        <Output Name="q_sMissingIngredients" Datatype="STRING[100]" Comment="缺少的原料列表" />
+      </IOs>
+    </Interface>
+    <Implementation>
+      <ST>
+// 初始化输出
+q_xAllIngredientsAvailable := TRUE;
+q_sMissingIngredients := '';
+
+// 检查香蕉
+IF i_xRequiredBanana AND NOT i_xBananaAvailable THEN
+    q_xAllIngredientsAvailable := FALSE;
+    q_sMissingIngredients := q_sMissingIngredients + '香蕉, ';
+END_IF;
+
+// 检查混合莓
+IF i_xRequiredBerryMix AND NOT i_xBerryMixAvailable THEN
+    q_xAllIngredientsAvailable := FALSE;
+    q_sMissingIngredients := q_sMissingIngredients + '混合莓, ';
+END_IF;
+
+// 检查菠菜
+IF i_xRequiredSpinach AND NOT i_xSpinachAvailable THEN
+    q_xAllIngredientsAvailable := FALSE;
+    q_sMissingIngredients := q_sMissingIngredients + '菠菜, ';
+END_IF;
+
+// 检查酸奶
+IF i_xRequiredYogurt AND NOT i_xYogurtAvailable THEN
+    q_xAllIngredientsAvailable := FALSE;
+    q_sMissingIngredients := q_sMissingIngredients + '酸奶, ';
+END_IF;
+
+// 清理字符串格式
+IF LEN(q_sMissingIngredients) > 0 THEN
+    q_sMissingIngredients := LEFT(q_sMissingIngredients, LEN(q_sMissingIngredients) - 2);
+END_IF;
+      </ST>
+    </Implementation>
+  </TcPOU>
+</TcPlcObject>

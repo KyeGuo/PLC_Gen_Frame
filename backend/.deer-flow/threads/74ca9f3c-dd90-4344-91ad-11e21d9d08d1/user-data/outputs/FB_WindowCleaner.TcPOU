@@ -1,0 +1,109 @@
+FUNCTION_BLOCK FB_WindowCleaner
+VAR_INPUT
+    StartButton: BOOL;          // 启动按钮
+    EmergencyStop: BOOL;        // 紧急停止按钮 (常闭，正常为TRUE，按下为FALSE)
+    UpperLimit: BOOL;           // 上限行程开关
+    LowerLimit: BOOL;           // 下限行程开关
+END_VAR
+
+VAR_OUTPUT
+    ElevatorUp: BOOL;           // 电梯上升输出
+    ElevatorDown: BOOL;         // 电梯下降输出
+    RotateClockwise: BOOL;      // 清洁刷顺时针旋转
+    WaterPump: BOOL;            // 水泵输出
+END_VAR
+
+VAR
+    CleaningInProgress: BOOL;   // 清洁过程进行中标志
+    ElevatorUpCmd: BOOL;        // 电梯上升命令
+    ElevatorDownCmd: BOOL;      // 电梯下降命令
+    CleanToolsCmd: BOOL;        // 清洁设备启动命令
+    
+    // 状态机定义
+    TYPE TCleanState: (
+        STATE_IDLE,             // 待机状态
+        STATE_ELEVATOR_UP,      // 电梯上升阶段
+        STATE_CLEANING_DOWN,    // 清洁下降阶段
+        STATE_COMPLETE          // 清洁完成状态
+    );
+    CurrentState: TCleanState;  // 当前状态
+    
+    // 上升沿检测
+    StartButton_Edge: R_TRIG;   // 启动按钮上升沿检测
+END_VAR
+
+VAR_CONSTANT
+    // 系统参数常量
+    EMERGENCY_STOP_ACTIVE: BOOL := FALSE;  // 紧急停止激活状态
+END_VAR
+
+// 紧急停止优先处理
+IF NOT EmergencyStop THEN
+    // 紧急停止激活，停止所有输出
+    ElevatorUp := FALSE;
+    ElevatorDown := FALSE;
+    RotateClockwise := FALSE;
+    WaterPump := FALSE;
+    CleaningInProgress := FALSE;
+    CurrentState := STATE_IDLE;
+    RETURN;
+END_IF;
+
+// 启动按钮上升沿检测
+StartButton_Edge(CLK := StartButton);
+
+// 状态机逻辑
+CASE CurrentState OF
+    STATE_IDLE:
+        // 待机状态：等待启动命令
+        ElevatorUp := FALSE;
+        ElevatorDown := FALSE;
+        RotateClockwise := FALSE;
+        WaterPump := FALSE;
+        CleaningInProgress := FALSE;
+        
+        // 检测到启动信号且不在清洁状态时启动
+        IF StartButton_Edge.Q AND NOT CleaningInProgress THEN
+            CleaningInProgress := TRUE;
+            CurrentState := STATE_ELEVATOR_UP;
+        END_IF;
+    
+    STATE_ELEVATOR_UP:
+        // 电梯上升阶段：移动到上限位置
+        ElevatorUp := TRUE;
+        ElevatorDown := FALSE;
+        RotateClockwise := FALSE;
+        WaterPump := FALSE;
+        
+        // 到达上限后切换到清洁下降阶段
+        IF UpperLimit THEN
+            CurrentState := STATE_CLEANING_DOWN;
+        END_IF;
+    
+    STATE_CLEANING_DOWN:
+        // 清洁下降阶段：启动清洁设备并下降
+        ElevatorUp := FALSE;
+        ElevatorDown := TRUE;
+        RotateClockwise := TRUE;
+        WaterPump := TRUE;
+        
+        // 到达下限后完成清洁过程
+        IF LowerLimit THEN
+            CurrentState := STATE_COMPLETE;
+        END_IF;
+    
+    STATE_COMPLETE:
+        // 清洁完成状态：停止所有输出，重置标志
+        ElevatorUp := FALSE;
+        ElevatorDown := FALSE;
+        RotateClockwise := FALSE;
+        WaterPump := FALSE;
+        CleaningInProgress := FALSE;
+        
+        // 自动返回待机状态
+        CurrentState := STATE_IDLE;
+END_CASE;
+
+// 互锁保护：禁止电梯同时上下移动
+ElevatorUp := ElevatorUp AND NOT ElevatorDown;
+ElevatorDown := ElevatorDown AND NOT ElevatorUp;

@@ -1,0 +1,95 @@
+FUNCTION_BLOCK SmartHVACSystem
+VAR_INPUT
+    TemperatureSensor : REAL; (* Temperature sensor reading in °C *)
+    HumiditySensor : REAL; (* Humidity sensor reading in %RH *)
+END_VAR
+VAR_OUTPUT
+    HVACMode : INT := 0; (* HVAC operating mode: 0=Off, 1=Cooling, 2=Heating, 3=Ventilation *)
+    HVACFanSpeed : INT := 0; (* Fan speed: 0=Off, 1=Low, 2=Medium, 3=High *)
+END_VAR
+VAR
+    DesiredTemperature : REAL := 24.0; (* Desired temperature setting in °C *)
+    DesiredHumidity : REAL := 50.0; (* Desired humidity setting in %RH *)
+    TemperatureThreshold : REAL := 1.0; (* Temperature tolerance threshold in °C *)
+    HumidityThreshold : REAL := 5.0; (* Humidity tolerance threshold in %RH *)
+    AdjustedHumidity : REAL; (* Sanitized humidity input *)
+    AdjustedTemperature : REAL; (* Sanitized temperature input *)
+    NeedsVentilation : BOOL; (* Flag for ventilation requirement *)
+    NeedsHeating : BOOL; (* Flag for heating requirement *)
+    NeedsCooling : BOOL; (* Flag for cooling requirement *)
+END_VAR
+
+(* Input sanitization for humidity *)
+IF HumiditySensor < 0.0 THEN
+    AdjustedHumidity := 0.0;
+ELSIF HumiditySensor > 100.0 THEN
+    AdjustedHumidity := 100.0;
+ELSE
+    AdjustedHumidity := HumiditySensor;
+END_IF;
+
+(* Input sanitization for temperature *)
+IF TemperatureSensor < -50.0 THEN
+    AdjustedTemperature := -50.0;
+ELSIF TemperatureSensor > 100.0 THEN
+    AdjustedTemperature := 100.0;
+ELSE
+    AdjustedTemperature := TemperatureSensor;
+END_IF;
+
+(* Determine ventilation requirement *)
+NeedsVentilation := (AdjustedHumidity < DesiredHumidity - HumidityThreshold);
+
+(* Determine heating requirement *)
+NeedsHeating := (AdjustedTemperature < DesiredTemperature - TemperatureThreshold);
+
+(* Determine cooling requirement *)
+NeedsCooling := (AdjustedTemperature > DesiredTemperature + TemperatureThreshold);
+
+(* Priority-based mode control *)
+IF NeedsHeating THEN
+    HVACMode := 2; (* Heating mode *)
+    HVACFanSpeed := 3; (* High fan speed *)
+ELSIF NeedsCooling THEN
+    HVACMode := 1; (* Cooling mode *)
+    HVACFanSpeed := 3; (* High fan speed *)
+ELSIF NeedsVentilation THEN
+    HVACMode := 3; (* Ventilation mode *)
+    HVACFanSpeed := 3; (* High fan speed *)
+ELSE
+    HVACMode := 0; (* System off *)
+    HVACFanSpeed := 0; (* Fan off *)
+END_IF;
+
+(* Formal property validation assertions *)
+// Assertion 1: HVAC mode must be heating when temperature is too low
+ASSERT NOT (AdjustedTemperature < DesiredTemperature - TemperatureThreshold) OR (HVACMode = 2);
+
+// Assertion 2: HVAC mode must be cooling when temperature is too high
+ASSERT NOT (AdjustedTemperature > DesiredTemperature + TemperatureThreshold) OR (HVACMode = 1);
+
+// Assertion 3: HVAC mode range check
+ASSERT (HVACMode >= 0) AND (HVACMode <= 3);
+
+// Assertion 4: Fan speed must match HVAC mode
+ASSERT NOT (HVACMode > 0) OR (HVACFanSpeed = 3);
+
+// Assertion 5: Adjusted humidity must be within valid range
+ASSERT (AdjustedHumidity >= 0.0) AND (AdjustedHumidity <= 100.0);
+
+// Assertion 6: Fan must be off when HVAC is off
+ASSERT NOT (HVACMode = 0) OR (HVACFanSpeed = 0);
+
+// Assertion 7: HVAC must be in heating mode when NeedsHeating is true
+ASSERT NOT NeedsHeating OR (HVACMode = 2);
+
+// Assertion 8: HVAC must be in cooling mode when NeedsCooling is true and NeedsHeating is false
+ASSERT NOT (NeedsCooling AND NOT NeedsHeating) OR (HVACMode = 1);
+
+// Assertion 9: HVAC must be in ventilation mode when only NeedsVentilation is true
+ASSERT NOT (NeedsVentilation AND NOT NeedsHeating AND NOT NeedsCooling) OR (HVACMode = 3);
+
+// Assertion 10: HVAC must be off when no needs are present
+ASSERT NOT (NOT NeedsVentilation AND NOT NeedsHeating AND NOT NeedsCooling) OR (HVACMode = 0);
+
+END_FUNCTION_BLOCK

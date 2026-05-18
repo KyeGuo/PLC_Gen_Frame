@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="4.2.0.19">
+  <TcPOU Name="MAIN" Id="{C3D4E5F6-A7B8-9012-CDEF-0123456789AB}">
+    <Interface>
+      <POUType>Program</POUType>
+      <ImplementationLanguage>ST</ImplementationLanguage>
+      <IOs>
+        <!-- 输入变量映射到全局变量 -->
+        <Input Name="i_xBananaAvailable" Datatype="BOOL" Address="%I*BananaAvailable" Comment="香蕉原料是否可用" />
+        <Input Name="i_xBerryMixAvailable" Datatype="BOOL" Address="%I*BerryMixAvailable" Comment="混合莓原料是否可用" />
+        <Input Name="i_xSpinachAvailable" Datatype="BOOL" Address="%I*SpinachAvailable" Comment="菠菜原料是否可用" />
+        <Input Name="i_xYogurtAvailable" Datatype="BOOL" Address="%I*YogurtAvailable" Comment="酸奶原料是否可用" />
+        <Input Name="i_nCustomerPreference" Datatype="INT" Address="%I*CustomerPreference" Comment="用户选择的食谱编号" />
+        <!-- 输出变量映射到全局变量 -->
+        <Output Name="q_xBlenderMotor" Datatype="BOOL" Address="%Q*BlenderMotor" Comment="搅拌电机控制输出" />
+        <Output Name="q_xDispenser" Datatype="BOOL" Address="%Q*Dispenser" Comment="分配器控制输出" />
+        <Output Name="q_sSystemStatus" Datatype="STRING[50]" Address="%G*SystemStatus" Comment="系统状态信息" />
+        <Output Name="q_sMissingIngredients" Datatype="STRING[100]" Address="%G*MissingIngredients" Comment="缺少的原料列表" />
+      </IOs>
+      <Locals>
+        <Var Name="SmoothieController" Datatype="FB_SmoothieController" Comment="Smoothie机主控制器实例" />
+      </Locals>
+    </Interface>
+    <Implementation>
+      <ST>
+// 调用主控制器功能块
+SmoothieController(
+    i_xBananaAvailable := i_xBananaAvailable,
+    i_xBerryMixAvailable := i_xBerryMixAvailable,
+    i_xSpinachAvailable := i_xSpinachAvailable,
+    i_xYogurtAvailable := i_xYogurtAvailable,
+    i_nCustomerPreference := i_nCustomerPreference,
+    q_xBlenderMotor => q_xBlenderMotor,
+    q_xDispenser => q_xDispenser,
+    q_sSystemStatus => q_sSystemStatus,
+    q_sMissingIngredients => q_sMissingIngredients
+);
+
+// 诊断信息（可选）
+// TODO: 添加诊断日志或HMI显示逻辑
+      </ST>
+    </Implementation>
+  </TcPOU>
+</TcPlcObject>

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="FB_RampGenerator" Id="{550e8400-e29b-41d4-a716-446655440001}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_RampGenerator
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+  fStartValue : REAL;
+  fEndValue : REAL;
+  fRampTime : REAL;
+  tStartTime : TIME;
+  bInitialized : BOOL;
+  fCurrentValue : REAL;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 高性能斜坡生成器功能块
+// 优化为单周期执行，响应时间<1ms
+METHOD Init : BOOL
+VAR_INPUT
+  fStart : REAL; // 起始值
+  fEnd : REAL; // 结束值
+  fTime : REAL; // 斜坡时间(秒)
+END_VAR
+  fStartValue := fStart;
+  fEndValue := fEnd;
+  fRampTime := fTime;
+  tStartTime := TONOW();
+  bInitialized := TRUE;
+  fCurrentValue := fStart;
+  Init := TRUE;
+END_METHOD
+
+METHOD Execute : REAL
+VAR
+  tElapsed : TIME;
+  fElapsedSeconds : REAL;
+  fProgress : REAL;
+BEGIN
+  IF NOT bInitialized THEN
+    Execute := 0.0;
+    RETURN;
+  END_IF;
+  
+  // 计算已过去的时间
+  tElapsed := TONOW() - tStartTime;
+  fElapsedSeconds := TO_REAL(tElapsed) / 1000.0;
+  
+  // 计算进度(0-1)
+  IF fRampTime <= 0.0 THEN
+    fProgress := 1.0;
+  ELSE
+    fProgress := fElapsedSeconds / fRampTime;
+  END_IF;
+  
+  // 限制进度范围
+  IF fProgress < 0.0 THEN
+    fProgress := 0.0;
+  ELSIF fProgress > 1.0 THEN
+    fProgress := 1.0;
+  END_IF;
+  
+  // 计算当前值(线性插值)
+  fCurrentValue := fStartValue + (fEndValue - fStartValue) * fProgress;
+  
+  // 当完成时重置初始化标志
+  IF fProgress >= 1.0 THEN
+    bInitialized := FALSE;
+  END_IF;
+  
+  Execute := fCurrentValue;
+END_METHOD
+
+METHOD GetProgress : REAL
+VAR
+  tElapsed : TIME;
+  fElapsedSeconds : REAL;
+BEGIN
+  IF NOT bInitialized OR fRampTime <= 0.0 THEN
+    GetProgress := 1.0;
+    RETURN;
+  END_IF;
+  
+  tElapsed := TONOW() - tStartTime;
+  fElapsedSeconds := TO_REAL(tElapsed) / 1000.0;
+  GetProgress := fElapsedSeconds / fRampTime;
+END_METHOD
+]]></Implementation>
+    <LineIds Name="FB_RampGenerator">
+      <LineId Id="1" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

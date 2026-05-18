@@ -1,0 +1,48 @@
+FUNCTION_BLOCK FB_OverloadProtection
+VAR_INPUT
+    MotorCurrent : REAL;  (* 电机电流检测值 - 单位：A (安培) *)
+    OverloadThreshold : REAL := 10.0;  (* 过载保护电流阈值 - 默认10A *)
+    OverloadDelay : TIME := T#2000MS;  (* 过载延时触发时间 - 默认2秒 *)
+    HysteresisCoeff : REAL := 0.9;  (* 迟滞系数 - 默认0.9，即电流低于阈值90%时复位 *)
+END_VAR
+VAR_OUTPUT
+    OverloadDetected : BOOL;  (* 过载检测状态 - TRUE表示已触发过载保护 *)
+    FaultCode : E_ErrorCode;  (* 故障码输出 - OVERLOAD表示过载触发 *)
+END_VAR
+VAR
+    OverloadTimer : TON;  (* 过载检测定时器 - 防止瞬时电流波动误触发 *)
+    OverlockActive : BOOL := FALSE;  (* 过载保护激活状态标记 *)
+END_VAR
+
+(* *******************************
+ * 过载检测逻辑
+ * 原理：当电流超过阈值持续达到设定延时后触发过载保护
+ * 防止瞬时电流波动导致的误动作
+ ******************************* *)
+OverloadTimer(IN := (MotorCurrent > OverloadThreshold), PT := OverloadDelay);
+
+(* 过载触发处理 *)
+IF OverloadTimer.Q THEN
+    OverlockActive := TRUE;
+    OverloadDetected := TRUE;
+    FaultCode := E_ErrorCode#OVERLOAD;
+END_IF;
+
+(* *******************************
+ * 故障自动复位逻辑
+ * 原理：当电流降至阈值的90%以下时，自动清除过载保护状态
+ * 迟滞特性防止频繁触发和复位
+ ******************************* *)
+IF OverlockActive AND (MotorCurrent < OverloadThreshold * HysteresisCoeff) THEN
+    OverlockActive := FALSE;
+    OverloadDetected := FALSE;
+    FaultCode := E_ErrorCode#NO_ERROR;
+    OverloadTimer(IN := FALSE);  (* 复位定时器，为下一次检测做准备 *)
+END_IF;
+
+(* 初始状态处理 *)
+IF NOT OverloadTimer.IN AND NOT OverlockActive THEN
+    OverloadDetected := FALSE;
+    FaultCode := E_ErrorCode#NO_ERROR;
+END_IF;
+END_FUNCTION_BLOCK

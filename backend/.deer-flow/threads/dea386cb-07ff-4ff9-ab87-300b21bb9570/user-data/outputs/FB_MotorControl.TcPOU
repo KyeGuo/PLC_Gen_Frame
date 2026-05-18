@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TC/PLC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.beckhoff.com/TC/PLC ../TcPOU.xsd">
+  <POU Name="FB_MotorControl" Id="{D4F2A7B9-1E8D-4C3B-8A6E-1B3C4D5E6F7A}" ExpertMode="0" Category="0" FallThrough="0" OutputVar="" Version="1.0.0.0" InterfaceVersion="1.0.0.0" CodeFlags="2">
+    <Interface>
+      <Declarations>
+        <Declaration Type="VAR_INPUT"><![CDATA[
+Start: BOOL; // 启动信号
+Stop: BOOL; // 停止信号
+SpeedSetpoint: INT; // 速度设定值 (0-3000 RPM)
+]]></Declaration>
+        <Declaration Type="VAR_OUTPUT"><![CDATA[
+Running: BOOL; // 运行状态
+ActualSpeed: INT; // 实际速度
+]]></Declaration>
+        <Declaration Type="VAR"><![CDATA[
+SpeedRampStep: INT := 10; // 速度斜坡步长
+CurrentState: INT := 0; // 0:停止, 1:运行
+]]></Declaration>
+      </Declarations>
+    </Interface>
+    <Implementation>
+      <ST><![CDATA[
+// 电机控制主逻辑
+IF Stop THEN
+  Running := FALSE;
+  CurrentState := 0;
+  ActualSpeed := 0;
+ELSIF Start THEN
+  Running := TRUE;
+  CurrentState := 1;
+  
+  // 速度斜坡调节
+  IF ActualSpeed < SpeedSetpoint THEN
+    ActualSpeed := ActualSpeed + SpeedRampStep;
+    IF ActualSpeed > SpeedSetpoint THEN
+      ActualSpeed := SpeedSetpoint;
+    END_IF;
+  ELSIF ActualSpeed > SpeedSetpoint THEN
+    ActualSpeed := ActualSpeed - SpeedRampStep;
+    IF ActualSpeed < SpeedSetpoint THEN
+      ActualSpeed := SpeedSetpoint;
+    END_IF;
+  END_IF;
+ELSE
+  // 保持当前状态
+  IF CurrentState = 1 THEN
+    Running := TRUE;
+    // 保持当前速度
+  ELSE
+    Running := FALSE;
+    ActualSpeed := 0;
+  END_IF;
+END_IF;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

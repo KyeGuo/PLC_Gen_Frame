@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns="http://www.Beckhoff.com/XML/ST/2003/03">
+  <AttributeList>
+    <Attribute Name="Name" Value="MuseumClimateControl_Optimized"/>
+    <Attribute Name="Comment" Value="博物馆气候控制系统功能块（优化版）"/>
+    <Attribute Name="POUType" Value="FB"/>
+    <Attribute Name="Language" Value="ST"/>
+  </AttributeList>
+  <DeclarationList>
+    <VAR_INPUT>
+      <Variable Name="HumiditySensor" Type="REAL" Comment="湿度传感器输入 (%RH)"/>
+      <Variable Name="TemperatureSensor" Type="REAL" Comment="温度传感器输入 (°C)"/>
+      <Variable Name="LightSensor" Type="BOOL" Comment="光线传感器输入 (TRUE=有光)"/>
+      <Variable Name="LightThreshold" Type="BOOL" Comment="灯光控制阈值 (TRUE=需要关闭灯光)"/>
+    </VAR_INPUT>
+    <VAR_OUTPUT>
+      <Variable Name="HVACSystem" Type="BOOL" Comment="HVAC系统输出 (TRUE=开启)"/>
+      <Variable Name="Humidifier" Type="BOOL" Comment="加湿器输出 (TRUE=开启)"/>
+      <Variable Name="Dehumidifier" Type="BOOL" Comment="除湿器输出 (TRUE=开启)"/>
+      <Variable Name="LightControl" Type="BOOL" Comment="灯光控制输出 (TRUE=开启)"/>
+    </VAR_OUTPUT>
+    <VAR>
+      <Variable Name="HumiditySetpoint" Type="REAL" Value="50.0" Comment="湿度设定值 (%RH)"/>
+      <Variable Name="TemperatureSetpoint" Type="REAL" Value="20.0" Comment="温度设定值 (°C)"/>
+      <Variable Name="TemperatureHysteresis" Type="REAL" Value="0.5" Comment="温度控制滞环宽度 (°C)"/>
+      <Variable Name="HumidityHysteresis" Type="REAL" Value="2.0" Comment="湿度控制滞环宽度 (%RH)"/>
+    </VAR>
+  </DeclarationList>
+  <Implementation>
+    <ST>
+      // 初始化输出变量
+      HVACSystem := FALSE;
+      Humidifier := FALSE;
+      Dehumidifier := FALSE;
+      LightControl := TRUE;
+      
+      // 温度控制逻辑（带滞环避免频繁启停）
+      IF TemperatureSensor > (TemperatureSetpoint + TemperatureHysteresis) THEN
+        HVACSystem := TRUE; // 温度过高，开启制冷
+      ELSIF TemperatureSensor < (TemperatureSetpoint - TemperatureHysteresis) THEN
+        HVACSystem := TRUE; // 温度过低，开启制热
+      ELSE
+        HVACSystem := FALSE; // 在滞环范围内，保持关闭
+      END_IF;
+      
+      // 湿度控制逻辑（带滞环和互锁）
+      IF HumiditySensor < (HumiditySetpoint - HumidityHysteresis) THEN
+        Humidifier := TRUE;
+        Dehumidifier := FALSE;
+      ELSIF HumiditySensor > (HumiditySetpoint + HumidityHysteresis) THEN
+        Dehumidifier := TRUE;
+        Humidifier := FALSE;
+      ELSE
+        Humidifier := FALSE;
+        Dehumidifier := FALSE;
+      END_IF;
+      
+      // 灯光控制逻辑（添加注释提高可读性）
+      // 逻辑说明：当光线传感器检测到光线且达到关闭阈值时，关闭灯光
+      // 否则保持灯光开启状态
+      LightControl := NOT (LightSensor AND LightThreshold);
+      
+      // 安全互锁逻辑（优化后仅保留最必要的互锁）
+      // 由于湿度控制逻辑已经包含互锁，这里仅作为最后一道安全保障
+      IF Humidifier THEN
+        Dehumidifier := FALSE;
+      END_IF;
+    </ST>
+  </Implementation>
+</POU>

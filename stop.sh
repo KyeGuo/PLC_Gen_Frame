@@ -27,6 +27,16 @@ if [ -f "$SCRIPT_DIR/gateway.pid" ]; then
     rm -f "$SCRIPT_DIR/gateway.pid"
 fi
 
+# 停止 Benchmark 服务
+if [ -f "$SCRIPT_DIR/benchmark.pid" ]; then
+    BENCHMARK_PID=$(cat "$SCRIPT_DIR/benchmark.pid" 2>/dev/null)
+    if [ -n "$BENCHMARK_PID" ]; then
+        echo "停止 Benchmark 服务 (PID: $BENCHMARK_PID)..."
+        kill $BENCHMARK_PID 2>/dev/null || true
+    fi
+    rm -f "$SCRIPT_DIR/benchmark.pid"
+fi
+
 # 停止前端
 if [ -f "$SCRIPT_DIR/frontend.pid" ]; then
     FRONTEND_PID=$(cat "$SCRIPT_DIR/frontend.pid" 2>/dev/null)
@@ -40,6 +50,7 @@ fi
 # 清理其他可能的进程
 pkill -f "make dev" 2>/dev/null || true
 pkill -f "make gateway" 2>/dev/null || true
+pkill -f "python server.py" 2>/dev/null || true
 pkill -f "npm run dev" 2>/dev/null || true
 
 echo ""

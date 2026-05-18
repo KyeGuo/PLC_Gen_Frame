@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TC/PLC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.beckhoff.com/TC/PLC ../Schemas/TcPlcObject.xsd">
+  <POU Name="FB_WindowCleaningSystem" Id="{8E3A3C4B-7F8D-4A9B-8F3E-1D2C4A5B6D7E}" Type="FunctionBlock" Version="1.0.0.0">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_WindowCleaningSystem
+VAR_INPUT
+    StartButton : BOOL;
+    EmergencyStop : BOOL;
+    UpperLimit : BOOL;
+    LowerLimit : BOOL;
+END_VAR
+
+VAR_OUTPUT
+    ElevatorUp : BOOL;
+    ElevatorDown : BOOL;
+    RotateClockwise : BOOL;
+    WaterPump : BOOL;
+    CurrentState : TCleanState; // 当前系统状态输出
+END_VAR
+
+VAR
+    CleaningInProgress : BOOL;
+    StartRisingEdge : BOOL;
+    PreviousStartButton : BOOL;
+    State : TCleanState;
+    StartDelay : TON;
+END_VAR
+
+METHOD FB_init : BOOL
+VAR_INPUT
+    bInitRetains : BOOL;
+    bInCopyCode : BOOL;
+END_VAR
+    IF bInitRetains THEN
+        // 初始化保持变量
+        State := STATE_IDLE;
+        CleaningInProgress := FALSE;
+        PreviousStartButton := FALSE;
+        StartDelay.IN := FALSE;
+        StartDelay.PT := T#1S;
+    END_IF;
+    FB_init := TRUE;
+END_METHOD
+
+]]></Declaration>
+    <Implementation Name="Body" Generated="false" ExternalSource="false" ExternalSourceName="">
+      <ST><![CDATA[
+// 输出当前状态
+CurrentState := State;
+
+// 紧急停止优先处理
+IF EmergencyStop THEN
+    State := STATE_EMERGENCY;
+END_IF;
+
+// 检测启动按钮上升沿
+StartRisingEdge := StartButton AND NOT PreviousStartButton;
+PreviousStartButton := StartButton;
+
+// 状态机逻辑
+CASE State OF
+    STATE_IDLE:
+        // 空闲状态：重置所有输出
+        ElevatorUp := FALSE;
+        ElevatorDown := FALSE;
+        RotateClockwise := FALSE;
+        WaterPump := FALSE;
+        CleaningInProgress := FALSE;
+        StartDelay.IN := FALSE;
+        
+        // 启动按钮上升沿触发清洁流程
+        IF StartRisingEdge AND NOT EmergencyStop THEN
+            State := STATE_ELEVATOR_UP; // 直接进入上升状态，避免延迟导致的逻辑混乱
+            CleaningInProgress := TRUE;
+        END_IF;
+        
+    STATE_ELEVATOR_UP:
+        // 电梯上升状态
+        ElevatorUp := TRUE;
+        ElevatorDown := FALSE;
+        RotateClockwise := FALSE;
+        WaterPump := FALSE;
+        
+        // 到达上限位置且无紧急停止
+        IF UpperLimit AND NOT EmergencyStop THEN
+            // 立即启动清洁刷和水泵，并开始下降
+            RotateClockwise := TRUE;
+            WaterPump := TRUE;
+            State := STATE_ELEVATOR_DOWN; // 立即进入下降状态，无需等待
+        END_IF;
+        
+    STATE_ELEVATOR_DOWN:
+        // 电梯下降状态：保持清洁设备运行
+        ElevatorUp := FALSE;
+        ElevatorDown := TRUE;
+        RotateClockwise := TRUE;
+        WaterPump := TRUE;
+        
+        // 到达下限位置且无紧急停止
+        IF LowerLimit AND NOT EmergencyStop THEN
+            State := STATE_COMPLETE;
+        END_IF;
+        
+    STATE_COMPLETE:
+        // 清洁完成状态：停止清洁设备，保持电梯停止
+        ElevatorUp := FALSE;
+        ElevatorDown := FALSE;
+        RotateClockwise := FALSE;
+        WaterPump := FALSE;
+        
+        // 延迟1秒后返回空闲状态
+        StartDelay.IN := TRUE;
+        IF StartDelay.Q THEN
+            State := STATE_IDLE;
+            CleaningInProgress := FALSE;
+            StartDelay.IN := FALSE;
+        END_IF;
+        
+    STATE_EMERGENCY:
+        // 紧急停止状态：立即停止所有输出
+        ElevatorUp := FALSE;
+        ElevatorDown := FALSE;
+        RotateClockwise := FALSE;
+        WaterPump := FALSE;
+        CleaningInProgress := FALSE;
+        StartDelay.IN := FALSE;
+        
+        // 紧急停止解除后返回空闲状态
+        IF NOT EmergencyStop THEN
+            State := STATE_IDLE;
+        END_IF;
+        
+END_CASE;
+
+// 断言：电梯上下输出不能同时为真
+ASSERT (NOT (ElevatorUp AND ElevatorDown)) 
+    MESSAGE '错误：电梯上下输出同时为真，违反互锁保护';
+
+// 断言：到达上限且正在上升且无紧急停止时，必须启动清洁刷和水泵
+ASSERT (NOT (UpperLimit AND ElevatorUp AND NOT EmergencyStop) OR (RotateClockwise AND WaterPump)) 
+    MESSAGE '错误：到达上限位置时未启动清洁刷和水泵';
+
+// 断言：紧急停止时所有输出必须为假
+ASSERT (NOT EmergencyStop OR (
+    NOT ElevatorUp AND 
+    NOT ElevatorDown AND 
+    NOT RotateClockwise AND 
+    NOT WaterPump
+)) 
+    MESSAGE '错误：紧急停止时输出未完全关闭';
+
+// 断言：下降过程中清洁设备必须保持运行
+ASSERT (NOT (State = STATE_ELEVATOR_DOWN) OR (RotateClockwise AND WaterPump)) 
+    MESSAGE '错误：下降过程中清洁设备未保持运行';
+
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

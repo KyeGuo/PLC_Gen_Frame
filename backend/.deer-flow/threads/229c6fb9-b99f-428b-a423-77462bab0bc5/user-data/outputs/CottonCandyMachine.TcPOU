@@ -1,0 +1,19 @@
+FUNCTION_BLOCK CottonCandyMachine
+VAR_INPUT
+    SugarLevel : REAL; (* Input for sugar level *)
+    SpinningSpeed : INT; (* Input for desired spinning speed *)
+END_VAR
+VAR_OUTPUT
+    SugarFeeder : BOOL; (* Output to control sugar feeding mechanism *)
+    SpinningMotorSpeed : INT; (* Output to control spinning motor speed *)
+END_VAR
+VAR
+END_VAR
+
+// Control logic for sugar feeder: activate when sugar level is below 10.0 units
+SugarFeeder := (SugarLevel < 10.0);
+
+// Control logic for spinning motor: ensure non-negative speed output
+SpinningMotorSpeed := MAX(SpinningSpeed, 0);
+
+END_FUNCTION_BLOCK

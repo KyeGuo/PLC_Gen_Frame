@@ -42,6 +42,10 @@ async def task_tool(
     - **bash**: Command execution specialist for running bash commands. This is only
       available when host bash is explicitly allowed or when using an isolated shell
       sandbox such as `AioSandboxProvider`.
+    - **plc-designer**: PLC方案设计专家。负责根据用户需求设计完整的PLC代码架构方案。
+    - **plc-coder**: PLC代码编写专家。负责根据方案文档编写高质量的PLC代码。
+    - **plc-validator**: PLC代码验证专家。负责使用TwinCAT MCP工具验证PLC代码的正确性。
+    - **plc-optimizer**: PLC代码优化专家。负责优化和修复PLC代码中的问题。
 
     When to use this tool:
     - Complex tasks requiring multiple steps or tools

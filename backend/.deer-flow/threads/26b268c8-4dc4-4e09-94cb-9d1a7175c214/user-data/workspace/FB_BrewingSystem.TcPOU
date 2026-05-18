@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns="http://www.beckhoff.com/TC3/POU" Name="FB_BrewingSystem" Category="524288" Id="" Version="1.0.0.0" FriendlyName="家庭酿酒系统控制功能块" Comment="实现家庭酿酒系统的核心控制逻辑，包括温度控制、搅拌控制、啤酒花投放和发酵控制">
+  <Declaration><![CDATA[
+FUNCTION_BLOCK FB_BrewingSystem
+VAR_INPUT
+    TemperatureSensor : REAL; // 温度传感器输入值 (°C)
+    WaterFlowSensor : REAL; // 水流量传感器输入值
+    BrewingStartTime : TIME; // 酿造开始时间
+    BrewingDuration : TIME; // 已酿造时间
+END_VAR
+VAR_OUTPUT
+    HeatingElement : BOOL; // 加热元件输出
+    AgitationMotor : BOOL; // 搅拌电机输出
+    HopsDispenser : BOOL; // 啤酒花投放器输出
+    FermentationTank : BOOL; // 发酵罐输出
+END_VAR
+VAR
+    SafetyState : BOOL; // 系统安全状态
+    ElapsedTime : TIME; // 已流逝时间
+END_VAR
+]]></Declaration>
+  <ST><![CDATA[
+// 初始化输出变量 - 所有输出初始状态为FALSE
+HeatingElement := FALSE;
+AgitationMotor := FALSE;
+HopsDispenser := FALSE;
+FermentationTank := FALSE;
+
+// 安全状态检查：传感器输入无效值判断
+// 温度合理范围：-50°C 至 150°C，流量合理范围：0.0 至 100.0
+SafetyState := (TemperatureSensor < -50.0 OR TemperatureSensor > 150.0) OR 
+               (WaterFlowSensor < 0.0 OR WaterFlowSensor > 100.0);
+
+IF NOT SafetyState THEN
+    // 计算已流逝时间 - 时间控制精度达到秒级
+    // 按照用户要求使用BrewingStartTime + BrewingDuration计算酿造时间
+    ElapsedTime := BrewingStartTime + BrewingDuration;
+    
+    // 温度控制逻辑：温度低于65.0°C时激活加热元件，等于或高于时关闭
+    // 使用布尔表达式直接赋值确保两种状态都被处理
+    HeatingElement := TemperatureSensor < 65.0;
+    
+    // 搅拌控制逻辑：水流量高于0.5单位时激活搅拌电机，等于或低于时关闭
+    // 使用布尔表达式直接赋值确保两种状态都被处理
+    AgitationMotor := WaterFlowSensor > 0.5;
+    
+    // 啤酒花投放逻辑：酿造开始5小时后自动激活投放器，≤5小时时关闭
+    // 使用布尔表达式直接赋值确保两种状态都被处理
+    HopsDispenser := ElapsedTime >= T#5H;
+    
+    // 发酵控制逻辑：酿造开始48小时后自动激活发酵罐
+    FermentationTank := ElapsedTime >= T#48H;
+END_IF;
+
+// 安全状态下所有输出关闭 - 传感器输入无效值时系统进入安全状态
+IF SafetyState THEN
+    HeatingElement := FALSE;
+    AgitationMotor := FALSE;
+    HopsDispenser := FALSE;
+    FermentationTank := FALSE;
+END_IF;
+]]></ST>
+</POU>

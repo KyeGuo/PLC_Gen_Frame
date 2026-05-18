@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns="http://www Beckhoff.com/XML/ST/2003/03">
+  <AttributeList>
+    <Attribute Name="Name" Value="MuseumClimateControl"/>
+    <Attribute Name="Comment" Value="博物馆气候控制系统功能块 - 修复版"/>
+    <Attribute Name="POUType" Value="FB"/>
+    <Attribute Name="Language" Value="ST"/>
+  </AttributeList>
+  <DeclarationList>
+    <VAR_INPUT>
+      <Variable Name="HumiditySensor" Type="REAL" Comment="湿度传感器输入 (%RH)"/>
+      <Variable Name="TemperatureSensor" Type="REAL" Comment="温度传感器输入 (°C)"/>
+      <Variable Name="LightSensor" Type="BOOL" Comment="光线传感器输入 (TRUE=有光)"/>
+      <Variable Name="LightThreshold" Type="BOOL" Comment="灯光控制阈值 (TRUE=需要关闭灯光)"/>
+    </VAR_INPUT>
+    <VAR_OUTPUT>
+      <Variable Name="HVACSystem" Type="BOOL" Comment="HVAC系统输出 (TRUE=开启)"/>
+      <Variable Name="Humidifier" Type="BOOL" Comment="加湿器输出 (TRUE=开启)"/>
+      <Variable Name="Dehumidifier" Type="BOOL" Comment="除湿器输出 (TRUE=开启)"/>
+      <Variable Name="LightControl" Type="BOOL" Comment="灯光控制输出 (TRUE=开启)"/>
+    </VAR_OUTPUT>
+    <VAR>
+      <Variable Name="HumiditySetpoint" Type="REAL" Value="50.0" Comment="湿度设定值 (%RH)"/>
+      <Variable Name="TemperatureSetpoint" Type="REAL" Value="20.0" Comment="温度设定值 (°C)"/>
+      <Variable Name="TempHumidifier" Type="BOOL" Comment="临时变量：加湿器控制信号"/>
+      <Variable Name="TempDehumidifier" Type="BOOL" Comment="临时变量：除湿器控制信号"/>
+    </VAR>
+  </DeclarationList>
+  <Implementation>
+    <ST>
+      // 1. 初始化所有输出变量，避免首次扫描不确定状态
+      HVACSystem := FALSE;
+      Humidifier := FALSE;
+      Dehumidifier := FALSE;
+      LightControl := TRUE;
+      
+      // 2. 湿度控制逻辑 - 修复竞态条件
+      TempHumidifier := (HumiditySensor < HumiditySetpoint);
+      TempDehumidifier := (HumiditySensor > HumiditySetpoint);
+      
+      // 3. 安全互锁：确保加湿器和除湿器不会同时开启
+      Humidifier := TempHumidifier AND NOT TempDehumidifier;
+      Dehumidifier := TempDehumidifier AND NOT TempHumidifier;
+      
+      // 4. 温度控制逻辑 - 添加滞环避免频繁启停
+      IF TemperatureSensor < (TemperatureSetpoint - 0.5) THEN
+        HVACSystem := TRUE;
+      ELSIF TemperatureSensor > (TemperatureSetpoint + 0.5) THEN
+        HVACSystem := TRUE;
+      ELSE
+        HVACSystem := FALSE;
+      END_IF;
+      
+      // 5. 灯光控制逻辑 - 直接映射需求，提高可读性
+      // 需求：当LightSensor和LightThreshold都为TRUE时，灯光关闭
+      // 当LightSensor或LightThreshold为FALSE时，灯光开启
+      LightControl := NOT (LightSensor AND LightThreshold);
+    </ST>
+  </Implementation>
+</POU>

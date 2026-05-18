@@ -86,6 +86,36 @@ def _get_thread_id(runtime: ToolRuntime[ContextT, ThreadState]) -> str | None:
         return None
 
 
+def _build_thread_aware_path(file_path: str, thread_id: str | None) -> str:
+    """Build a file path that includes thread ID for organization.
+    
+    Args:
+        file_path: Original file path (e.g., /mnt/user-data/workspace/FB_Test.TcPOU)
+        thread_id: Current thread ID
+        
+    Returns:
+        Modified path with thread ID subdirectory (e.g., /mnt/user-data/workspace/thread_abc123/FB_Test.TcPOU)
+    """
+    if not thread_id:
+        return file_path
+    
+    # Parse the path
+    path = Path(file_path)
+    
+    # If path already starts with thread_ prefix, don't modify it
+    if any(part.startswith("thread_") for part in path.parts):
+        return file_path
+    
+    # Build thread-specific directory name
+    thread_dir = f"thread_{thread_id}"
+    
+    # Insert thread directory before the filename
+    # e.g., /mnt/user-data/workspace/FB_Test.TcPOU -> /mnt/user-data/workspace/thread_xxx/FB_Test.TcPOU
+    new_path = path.parent / thread_dir / path.name
+    
+    return str(new_path)
+
+
 @tool("plc_write_file", parse_docstring=True)
 def plc_write_file_tool(
     runtime: ToolRuntime[ContextT, ThreadState],
@@ -115,19 +145,28 @@ def plc_write_file_tool(
         validation_level: Validation level: 'all' (45 checks), 'critical', or 'style'
         auto_fix: Automatically fix issues found during validation
     """
+    # Get thread ID for organizing files
+    thread_id = _get_thread_id(runtime)
+    
+    # Build thread-aware path
+    actual_file_path = _build_thread_aware_path(file_path, thread_id)
+    
     results = []
     results.append(f"## 📝 PLC File Write & Validate: {file_path}\n")
+    if thread_id and actual_file_path != file_path:
+        results.append(f"📁 **Thread ID:** `{thread_id}`\n")
+        results.append(f"📂 **Saving to:** `{actual_file_path}`\n")
     
     # Step 1: Write the file using filesystem MCP tool
     results.append("### Step 1: Writing file...\n")
-    write_result = _invoke_mcp_tool("filesystem_write_file", path=file_path, content=content)
+    write_result = _invoke_mcp_tool("filesystem_write_file", path=actual_file_path, content=content)
     results.append(f"**Write Result:** {write_result[:200]}...\n")
     
     # Step 2: Validate with TwinCAT
     results.append("\n### Step 2: TwinCAT Validation (MANDATORY)\n")
     validate_result = _invoke_mcp_tool(
         "twincat-validator_validate_file",
-        file_path=file_path,
+        file_path=actual_file_path,
         validation_level=validation_level
     )
     
@@ -169,7 +208,7 @@ def plc_write_file_tool(
         results.append("\n### Step 3: Auto-Fix (if needed)\n")
         fix_result = _invoke_mcp_tool(
             "twincat-validator_autofix_file",
-            file_path=file_path,
+            file_path=actual_file_path,
             create_backup=True
         )
         
@@ -190,7 +229,7 @@ def plc_write_file_tool(
         results.append("\n### Step 4: Post-Fix Validation\n")
         revalidate_result = _invoke_mcp_tool(
             "twincat-validator_get_validation_summary",
-            file_path=file_path
+            file_path=actual_file_path
         )
         try:
             reval_data = json.loads(revalidate_result) if isinstance(revalidate_result, str) else revalidate_result
@@ -205,15 +244,14 @@ def plc_write_file_tool(
     # 获取 artifacts 路径
     artifacts = []
     try:
-        # 使用真实的 runtime 获取线程信息
-        thread_id = _get_thread_id(runtime)
+        # 使用真实的 runtime 获取线程信息（前面已经获取过 thread_id）
         if thread_id and runtime.state:
             thread_data = runtime.state.get("thread_data") or {}
             outputs_path = thread_data.get("outputs_path")
             workspace_path = thread_data.get("workspace_path")
             
-            # 规范化文件路径
-            actual_path = Path(file_path).expanduser().resolve()
+            # 规范化文件路径（使用实际的文件路径）
+            actual_path = Path(actual_file_path).expanduser().resolve()
             virtual_path = None
             
             # 首先尝试从 outputs 目录计算相对路径

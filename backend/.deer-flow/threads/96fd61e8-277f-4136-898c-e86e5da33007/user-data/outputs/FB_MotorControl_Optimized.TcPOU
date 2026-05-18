@@ -1,0 +1,139 @@
+FUNCTION_BLOCK FB_MotorControl
+VAR_INPUT
+    Start : BOOL;  (* 启动按钮输入 - 上升沿触发 *)
+    Stop : BOOL;  (* 停止按钮输入 - 常闭触发，停止优先 *)
+    TargetSpeed : REAL;  (* 目标速度设定值 - 单位：转/分钟 (RPM) *)
+    MaxSpeed : REAL := 3000.0;  (* 最大允许速度 - 防止超速运行 *)
+    MinSpeed : REAL := 0.0;  (* 最小允许速度 - 防止低速卡顿 *)
+    RampTime : TIME := T#1000MS;  (* 加速/减速斜坡时间 - 默认1秒 *)
+END_VAR
+VAR_OUTPUT
+    MotorData : DUT_MotorData;  (* 电机状态和数据输出 *)
+END_VAR
+VAR
+    CurrentState : E_MotorState := E_MotorState#STOPPED;  (* 当前电机状态 *)
+    LastStartEdge : BOOL := FALSE;  (* 上一次启动按钮状态 - 用于上升沿检测 *)
+    SpeedRampStep : REAL;  (* 每10ms的速度变化量 - 用于平滑调速 *)
+    RampInterval : TIME := T#10MS;  (* 速度斜坡计算间隔 - 固定10ms *)
+END_VAR
+
+(* *******************************
+ * 速度斜坡计算逻辑
+ * 公式：SpeedRampStep = (目标速度与当前速度差值 * 计算间隔) / 斜坡时间
+ * 作用：实现平滑的速度变化，避免电机启动/停止时的机械冲击
+ ******************************* *)
+SpeedRampStep := (ABS(TargetSpeed - MotorData.CurrentSpeed) * TIME_TO_REAL(RampInterval)) / TIME_TO_REAL(RampTime);
+
+(* *******************************
+ * 状态机控制逻辑
+ * 覆盖电机的完整生命周期：停止→启动→运行→停止→故障
+ ******************************* *)
+CASE CurrentState OF
+    E_MotorState#STOPPED:
+        MotorData.CurrentSpeed := 0.0;
+        MotorData.State := E_MotorState#STOPPED;
+        MotorData.ErrorCode := E_ErrorCode#NO_ERROR;
+        
+        (* 启动按钮上升沿检测 - 防止持续触发 *)
+        IF Start AND NOT LastStartEdge THEN
+            (* 速度范围合法性检查 - 防止无效速度设定 *)
+            IF CheckSpeedRange(TargetSpeed, MinSpeed, MaxSpeed) THEN
+                MotorData.TargetSpeed := TargetSpeed;
+                CurrentState := E_MotorState#STARTING;
+            ELSE
+                MotorData.ErrorCode := E_ErrorCode#SPEED_OUT_OF_RANGE;
+                CurrentState := E_MotorState#FAULT;
+            END_IF;
+        END_IF;
+        LastStartEdge := Start;
+    
+    E_MotorState#STARTING:
+        MotorData.State := E_MotorState#STARTING;
+        MotorData.TargetSpeed := TargetSpeed;
+        
+        (* 斜坡加速逻辑 - 逐步接近目标速度 *)
+        IF MotorData.CurrentSpeed < TargetSpeed THEN
+            MotorData.CurrentSpeed := MIN(MotorData.CurrentSpeed + SpeedRampStep, TargetSpeed);
+        ELSE
+            MotorData.CurrentSpeed := TargetSpeed;
+        END_IF;
+        
+        (* 速度达到目标值后切换到运行状态 *)
+        IF ABS(MotorData.CurrentSpeed - TargetSpeed) <= 0.1 THEN
+            CurrentState := E_MotorState#RUNNING;
+        END_IF;
+        
+        (* 停止优先逻辑 - 任何时候按下停止按钮立即进入停止流程 *)
+        IF Stop THEN
+            CurrentState := E_MotorState#STOPPING;
+        END_IF;
+    
+    E_MotorState#RUNNING:
+        MotorData.State := E_MotorState#RUNNING;
+        MotorData.TargetSpeed := TargetSpeed;
+        
+        (* 实时速度调节 - 动态跟踪目标速度变化 *)
+        IF ABS(MotorData.CurrentSpeed - TargetSpeed) > SpeedRampStep THEN
+            IF MotorData.CurrentSpeed < TargetSpeed THEN
+                MotorData.CurrentSpeed := MotorData.CurrentSpeed + SpeedRampStep;
+            ELSE
+                MotorData.CurrentSpeed := MotorData.CurrentSpeed - SpeedRampStep;
+            END_IF;
+        ELSE
+            MotorData.CurrentSpeed := TargetSpeed;
+        END_IF;
+        
+        (* 运行过程中的速度范围监控 - 防止速度异常 *)
+        IF NOT CheckSpeedRange(MotorData.CurrentSpeed, MinSpeed, MaxSpeed) THEN
+            MotorData.ErrorCode := E_ErrorCode#SPEED_OUT_OF_RANGE;
+            CurrentState := E_MotorState#FAULT;
+        END_IF;
+        
+        (* 停止命令处理 - 响应停止按钮 *)
+        IF Stop THEN
+            CurrentState := E_MotorState#STOPPING;
+        END_IF;
+    
+    E_MotorState#STOPPING:
+        MotorData.State := E_MotorState#STOPPING;
+        
+        (* 斜坡减速逻辑 - 逐步降低速度到0 *)
+        IF MotorData.CurrentSpeed > SpeedRampStep THEN
+            MotorData.CurrentSpeed := MAX(MotorData.CurrentSpeed - SpeedRampStep, 0.0);
+        ELSE
+            MotorData.CurrentSpeed := 0.0;
+            CurrentState := E_MotorState#STOPPED;
+        END_IF;
+    
+    E_MotorState#FAULT:
+        MotorData.State := E_MotorState#FAULT;
+        MotorData.CurrentSpeed := 0.0;
+        
+        (* 故障复位逻辑 - 按下停止按钮清除故障状态 *)
+        IF Stop THEN
+            MotorData.ErrorCode := E_ErrorCode#NO_ERROR;
+            CurrentState := E_MotorState#STOPPED;
+        END_IF;
+END_CASE;
+
+END_FUNCTION_BLOCK
+
+(* *******************************
+ * 函数：CheckSpeedRange
+ * 功能：检查速度是否在合法范围内
+ * 参数：
+ *   Speed: 要检查的速度值
+ *   MinSpeed: 最小允许速度
+ *   MaxSpeed: 最大允许速度
+ * 返回值：速度合法返回TRUE，否则返回FALSE
+ ******************************* *)
+FUNCTION CheckSpeedRange : BOOL
+VAR_INPUT
+    Speed : REAL;
+    MinSpeed : REAL;
+    MaxSpeed : REAL;
+END_VAR
+
+CheckSpeedRange := (Speed >= MinSpeed) AND (Speed <= MaxSpeed);
+
+END_FUNCTION

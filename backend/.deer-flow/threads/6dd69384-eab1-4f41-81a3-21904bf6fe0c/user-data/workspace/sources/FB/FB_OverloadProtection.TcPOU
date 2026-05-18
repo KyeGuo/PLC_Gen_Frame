@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns="http://infosys.beckhoff.com/TC3/POU" Name="FB_OverloadProtection" Type="FunctionBlock" Version="1.0.0.0">
+  <Description>电机过载保护功能块 - 支持电流检测、延时触发、滞回保护</Description>
+  <Interface>
+    <Inputs>
+      <Input Name="fActualCurrent" Type="REAL" Description="实际电流反馈 (0-100 A)"/>
+      <Input Name="fOverloadThreshold" Type="REAL" Description="过载保护阈值 (默认: 80 A)" DefaultValue="80.0"/>
+      <Input Name="nOverloadDelay" Type="DINT" Description="过载触发延时 (默认: 5000 ms)" DefaultValue="5000"/>
+      <Input Name="fHysteresis" Type="REAL" Description="滞回值 (默认: 10 A)" DefaultValue="10.0"/>
+      <Input Name="bReset" Type="BOOL" Description="过载复位命令 (上升沿触发)"/>
+    </Inputs>
+    <Outputs>
+      <Output Name="bOverloadActive" Type="BOOL" Description="过载保护激活状态"/>
+      <Output Name="eErrorCode" Type="E_ErrorCode" Description="错误代码输出"/>
+    </Outputs>
+    <Internals>
+      <Internal Name="_tOverloadTimer" Type="TON" Description="过载延时定时器"/>
+      <Internal Name="_bResetEdge" Type="BOOL" Description="复位命令上升沿检测"/>
+      <Internal Name="_bOverlockActive" Type="BOOL" Description="内部过载激活状态"/>
+    </Internals>
+  </Interface>
+  <Implementation>
+    <ST>
+(* 过载保护功能块 - FB_OverloadProtection *)
+(* 功能: 实现电机电流过载检测、延时触发、滞回保护、故障复位 *)
+
+METHOD FB_OverloadProtection:
+VAR_INPUT
+    fActualCurrent: REAL;
+    fOverloadThreshold: REAL := 80.0;
+    nOverloadDelay: DINT := 5000;
+    fHysteresis: REAL := 10.0;
+    bReset: BOOL;
+END_VAR
+VAR_OUTPUT
+    bOverloadActive: BOOL;
+    eErrorCode: E_ErrorCode;
+END_VAR
+VAR
+    _tOverloadTimer: TON;
+    _bResetEdge: BOOL;
+    _bOverlockActive: BOOL;
+END_VAR
+
+(* 上升沿检测 *)
+_bResetEdge := bReset AND NOT _bResetEdge;
+
+(* 复位逻辑 *)
+IF _bResetEdge THEN
+    _bOverlockActive := FALSE;
+    eErrorCode := E_ErrorCode.NO_ERROR;
+    _tOverloadTimer(IN := FALSE);
+END_IF;
+
+(* 过载检测逻辑 *)
+IF NOT _bOverlockActive THEN
+    (* 未过载状态下检测电流是否超过阈值 *)
+    IF fActualCurrent > fOverloadThreshold THEN
+        (* 启动过载延时定时器 *)
+        _tOverloadTimer(IN := TRUE, PT := TO_TIME(nOverloadDelay));
+        
+        (* 延时时间到，触发过载保护 *)
+        IF _tOverloadTimer.Q THEN
+            _bOverlockActive := TRUE;
+            eErrorCode := E_ErrorCode.OVERLOAD;
+        END_IF;
+    ELSE
+        (* 电流正常，复位定时器 *)
+        _tOverloadTimer(IN := FALSE);
+    END_IF;
+ELSE
+    (* 过载状态下检测电流是否低于滞回值 *)
+    IF fActualCurrent < (fOverloadThreshold - fHysteresis) THEN
+        (* 电流恢复正常，解除过载保护 *)
+        _bOverlockActive := FALSE;
+        eErrorCode := E_ErrorCode.NO_ERROR;
+        _tOverloadTimer(IN := FALSE);
+    END_IF;
+END_IF;
+
+(* 输出状态同步 *)
+bOverloadActive := _bOverlockActive;
+IF _bOverlockActive THEN
+    eErrorCode := E_ErrorCode.OVERLOAD;
+END_IF;
+
+END_METHOD
+    </ST>
+  </Implementation>
+  <Attributes>
+    <Attribute Name="TcVersion" Value="3.1.4024.17"/>
+    <Attribute Name="Guid" Value="{E5F6A7B8-9012-34CD-5678-9012ABCDEF34}"/>
+  </Attributes>
+</POU>

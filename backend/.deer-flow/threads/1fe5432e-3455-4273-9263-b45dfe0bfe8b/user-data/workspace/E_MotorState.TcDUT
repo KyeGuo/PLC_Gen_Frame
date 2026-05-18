@@ -1,0 +1,9 @@
+TYPE E_MotorState :
+(
+    STOPPED := 0,          // 电机停止
+    STARTING := 1,         // 电机启动中
+    RUNNING := 2,          // 电机运行中
+    STOPPING := 3,         // 电机停止中
+    FAULT := 4             // 电机故障
+) DINT;
+END_TYPE

@@ -1,0 +1,12 @@
+TYPE E_ErrorCode :
+(
+    NO_ERROR := 0,         // 无错误
+    OVERLOAD := 1,         // 过载保护触发
+    OVERCURRENT := 2,      // 过流保护
+    OVERVOLTAGE := 3,      // 过压保护
+    UNDERVOLTAGE := 4,     // 欠压保护
+    OVERHEAT := 5,         // 过热保护
+    COMM_FAILURE := 6,     // 通信故障
+    EMERGENCY_STOP := 7    // 急停触发
+) DINT;
+END_TYPE

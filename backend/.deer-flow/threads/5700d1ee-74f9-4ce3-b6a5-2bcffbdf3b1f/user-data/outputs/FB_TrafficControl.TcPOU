@@ -1,0 +1,140 @@
+FUNCTION_BLOCK FB_TrafficControl
+VAR_INPUT
+    VehicleCount1 : INT;       // 路口1车辆数量
+    VehicleCount2 : INT;       // 路口2车辆数量
+    VehicleCount3 : INT;       // 路口3车辆数量
+    VehicleCount4 : INT;       // 路口4车辆数量
+END_VAR
+VAR_OUTPUT
+    TrafficLight1 : BOOL;      // 路口1交通灯状态 (TRUE=绿灯, FALSE=红灯)
+    TrafficLight2 : BOOL;      // 路口2交通灯状态 (TRUE=绿灯, FALSE=红灯)
+    TrafficLight3 : BOOL;      // 路口3交通灯状态 (TRUE=绿灯, FALSE=红灯)
+    TrafficLight4 : BOOL;      // 路口4交通灯状态 (TRUE=绿灯, FALSE=红灯)
+END_VAR
+VAR
+    // 内部状态变量
+    GreenTimer1 : TON;         // 路口1绿灯计时器
+    GreenTimer2 : TON;         // 路口2绿灯计时器
+    GreenTimer3 : TON;         // 路口3绿灯计时器
+    GreenTimer4 : TON;         // 路口4绿灯计时器
+    
+    // 状态记忆变量
+    LastGreen1 : BOOL;         // 上一次路口1绿灯状态
+    LastGreen2 : BOOL;         // 上一次路口2绿灯状态
+    LastGreen3 : BOOL;         // 上一次路口3绿灯状态
+    LastGreen4 : BOOL;         // 上一次路口4绿灯状态
+END_VAR
+
+// 形式化属性断言
+ASSERT NOT (TrafficLight1 AND TrafficLight2); // 属性5: TrafficLight1和TrafficLight2始终处于相反状态
+ASSERT NOT (TrafficLight3 AND TrafficLight4); // 属性6: TrafficLight3和TrafficLight4始终处于相反状态
+
+// 第一组交通灯控制逻辑 (路口1和路口2)
+IF VehicleCount1 > VehicleCount2 THEN
+    // 属性1: 当VehicleCount1 > VehicleCount2时，TrafficLight1为绿色且TrafficLight2为红色
+    TrafficLight1 := TRUE;
+    TrafficLight2 := FALSE;
+    
+    // 启动绿灯计时器，确保最小绿灯时间
+    GreenTimer1(IN := TRUE, PT := MIN_GREEN_TIME);
+    GreenTimer2(IN := FALSE);
+    
+    // 更新状态记忆
+    LastGreen1 := TRUE;
+    LastGreen2 := FALSE;
+    
+    // 断言属性1
+    ASSERT TrafficLight1 AND NOT TrafficLight2;
+ELSIF VehicleCount2 >= VehicleCount1 THEN
+    // 属性2: 当VehicleCount2 >= VehicleCount1时，TrafficLight2为绿色且TrafficLight1为红色
+    TrafficLight1 := FALSE;
+    TrafficLight2 := TRUE;
+    
+    // 启动绿灯计时器，确保最小绿灯时间
+    GreenTimer1(IN := FALSE);
+    GreenTimer2(IN := TRUE, PT := MIN_GREEN_TIME);
+    
+    // 更新状态记忆
+    LastGreen1 := FALSE;
+    LastGreen2 := TRUE;
+    
+    // 断言属性2
+    ASSERT NOT TrafficLight1 AND TrafficLight2;
+END_IF
+
+// 第二组交通灯控制逻辑 (路口3和路口4)
+IF VehicleCount3 > VehicleCount4 THEN
+    // 属性3: 当VehicleCount3 > VehicleCount4时，TrafficLight3为绿色且TrafficLight4为红色
+    TrafficLight3 := TRUE;
+    TrafficLight4 := FALSE;
+    
+    // 启动绿灯计时器，确保最小绿灯时间
+    GreenTimer3(IN := TRUE, PT := MIN_GREEN_TIME);
+    GreenTimer4(IN := FALSE);
+    
+    // 更新状态记忆
+    LastGreen3 := TRUE;
+    LastGreen4 := FALSE;
+    
+    // 断言属性3
+    ASSERT TrafficLight3 AND NOT TrafficLight4;
+ELSIF VehicleCount4 >= VehicleCount3 THEN
+    // 属性4: 当VehicleCount4 >= VehicleCount3时，TrafficLight4为绿色且TrafficLight3为红色
+    TrafficLight3 := FALSE;
+    TrafficLight4 := TRUE;
+    
+    // 启动绿灯计时器，确保最小绿灯时间
+    GreenTimer3(IN := FALSE);
+    GreenTimer4(IN := TRUE, PT := MIN_GREEN_TIME);
+    
+    // 更新状态记忆
+    LastGreen3 := FALSE;
+    LastGreen4 := TRUE;
+    
+    // 断言属性4
+    ASSERT NOT TrafficLight3 AND TrafficLight4;
+END_IF
+
+// 最小绿灯时间保护
+IF LastGreen1 AND NOT GreenTimer1.Q THEN
+    TrafficLight1 := TRUE;
+    TrafficLight2 := FALSE;
+END_IF
+
+IF LastGreen2 AND NOT GreenTimer2.Q THEN
+    TrafficLight1 := FALSE;
+    TrafficLight2 := TRUE;
+END_IF
+
+IF LastGreen3 AND NOT GreenTimer3.Q THEN
+    TrafficLight3 := TRUE;
+    TrafficLight4 := FALSE;
+END_IF
+
+IF LastGreen4 AND NOT GreenTimer4.Q THEN
+    TrafficLight3 := FALSE;
+    TrafficLight4 := TRUE;
+END_IF
+
+// 更新累计统计信息
+TotalVehicleCount[1] := TotalVehicleCount[1] + VehicleCount1;
+TotalVehicleCount[2] := TotalVehicleCount[2] + VehicleCount2;
+TotalVehicleCount[3] := TotalVehicleCount[3] + VehicleCount3;
+TotalVehicleCount[4] := TotalVehicleCount[4] + VehicleCount4;
+
+IF TrafficLight1 THEN
+    GreenLightDuration[1] := GreenLightDuration[1] + T#100MS;
+END_IF
+
+IF TrafficLight2 THEN
+    GreenLightDuration[2] := GreenLightDuration[2] + T#100MS;
+END_IF
+
+IF TrafficLight3 THEN
+    GreenLightDuration[3] := GreenLightDuration[3] + T#100MS;
+END_IF
+
+IF TrafficLight4 THEN
+    GreenLightDuration[4] := GreenLightDuration[4] + T#100MS;
+END_IF
+END_FUNCTION_BLOCK

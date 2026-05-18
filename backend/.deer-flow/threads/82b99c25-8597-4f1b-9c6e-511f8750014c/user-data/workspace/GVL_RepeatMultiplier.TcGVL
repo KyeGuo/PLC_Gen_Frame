@@ -1,0 +1,15 @@
+{attribute 'qualified_only'}
+VAR_GLOBAL
+    // 功能块实例
+    g_RepeatMultiplier: FB_RepeatMultiplier;
+    
+    // 测试用输入变量
+    g_TestInputVar1: INT := 2;
+    g_TestInputCounter: INT := 4;
+    
+    // 测试用输出变量
+    g_TestOutputVar1: INT;
+    
+    // 常量定义
+    c_Multiplier: INT := 2;      // 乘法因子
+END_VAR

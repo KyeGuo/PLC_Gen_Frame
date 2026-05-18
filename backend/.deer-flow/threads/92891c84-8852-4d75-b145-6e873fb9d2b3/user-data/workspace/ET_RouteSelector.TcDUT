@@ -1,0 +1,7 @@
+TYPE ET_RouteSelector :
+    (
+        Route1 := 1,
+        Route2 := 2,
+        Route3 := 3
+    );
+END_TYPE

@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/XML/STProject/2013/3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.beckhoff.com/XML/STProject/2013/3 http://www.beckhoff.com/XML/STProject/2013/3/TcPlcObject.xsd">
+  <POU Name="FB_PrecisionEngravingMachine" Id="{00000000-0000-0000-0000-000000000000}" Group="Programs" POUType="FunctionBlock">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK FB_PrecisionEngravingMachine
+VAR_INPUT
+    DesignSelection : INT; // 设计选择输入: 1=设计1, 2=设计2, 3=设计3
+    ExternalEngravingDepth : REAL; // 外部输入雕刻深度（备用参数，范围: 0.0-1.0mm）
+    ExternalEngravingSpeed : REAL; // 外部输入雕刻速度（备用参数，范围: 0.0-20.0mm/s）
+    UseExternalParameters : BOOL := FALSE; // 是否使用外部参数，默认使用预设参数
+END_VAR
+VAR_OUTPUT
+    ZAxisMotorEnabled : BOOL; // Z轴电机使能输出（TRUE=激活，FALSE=禁用）
+    EngravingMotorEnabled : BOOL; // 雕刻电机使能输出（TRUE=激活，FALSE=禁用）
+    IsValidParameterSet : BOOL; // 参数设置有效性状态输出
+    ValidationErrorMessage : STRING; // 参数验证错误信息
+END_VAR
+VAR
+    CalculatedEngravingDepth : REAL; // 内部计算的实际雕刻深度(mm)
+    CalculatedEngravingSpeed : REAL; // 内部计算的实际雕刻速度(mm/s)
+    PreviousDesignSelection : INT := -1; // 上一次设计选择，初始值为无效设计
+    DesignParametersChanged : BOOL; // 设计参数是否发生变化标志
+END_VAR
+VAR_GLOBAL CONSTANT
+    // 设计参数配置数组 - 集中管理所有预设工艺参数
+    c_DesignParameterSets : ARRAY[1..3] OF ST_DesignParameters := [
+        (Speed := 10.0, Depth := 0.1, Description := "精细雕刻模式"),  // 设计1: 高精度精细雕刻
+        (Speed := 8.0, Depth := 0.2, Description := "深度雕刻模式"),   // 设计2: 较深深度雕刻
+        (Speed := 12.0, Depth := 0.15, Description := "快速雕刻模式")  // 设计3: 中等深度快速雕刻
+    ];
+    // 参数范围常量定义
+    c_MinEngravingDepth : REAL := 0.01; // 最小雕刻深度(mm)
+    c_MaxEngravingDepth : REAL := 1.0;  // 最大雕刻深度(mm)
+    c_MinEngravingSpeed : REAL := 1.0;  // 最小雕刻速度(mm/s)
+    c_MaxEngravingSpeed : REAL := 20.0; // 最大雕刻速度(mm/s)
+END_VAR
+END_FUNCTION_BLOCK
+
+// 设计参数结构体类型定义
+TYPE ST_DesignParameters :
+STRUCT
+    Speed : REAL;      // 雕刻速度(mm/s)
+    Depth : REAL;      // 雕刻深度(mm)
+    Description : STRING; // 工艺模式描述
+END_STRUCT
+END_TYPE
+]]></Declaration>
+    <Implementation Name="" Id="{00000000-0000-0000-0000-000000000000}" ImplementationLanguage="ST">
+      <ST><![CDATA[
+/// <summary>
+/// 参数范围检查方法 - 验证输入参数是否在允许范围内
+/// </summary>
+/// <param name="Speed">待验证的雕刻速度(mm/s)</param>
+/// <param name="Depth">待验证的雕刻深度(mm)</param>
+/// <returns>参数是否有效的布尔值</returns>
+METHOD ValidateParameterRange : BOOL
+VAR_INPUT
+    Speed : REAL;
+    Depth : REAL;
+END_VAR
+VAR
+    IsSpeedValid : BOOL;
+    IsDepthValid : BOOL;
+END_VAR
+// 验证雕刻速度范围
+IsSpeedValid := (Speed >= c_MinEngravingSpeed) AND (Speed <= c_MaxEngravingSpeed);
+// 验证雕刻深度范围
+IsDepthValid := (Depth >= c_MinEngravingDepth) AND (Depth <= c_MaxEngravingDepth);
+
+// 更新验证状态和错误信息
+IF IsSpeedValid AND IsDepthValid THEN
+    ValidateParameterRange := TRUE;
+    IsValidParameterSet := TRUE;
+    ValidationErrorMessage := "";
+ELSE
+    ValidateParameterRange := FALSE;
+    IsValidParameterSet := FALSE;
+    ValidationErrorMessage := CONCAT(
+        CONCAT(IF NOT IsSpeedValid THEN "速度参数超出范围(" + STRING(c_MinEngravingSpeed) + "-" + STRING(c_MaxEngravingSpeed) + "mm/s); " ELSE ""),
+        IF NOT IsDepthValid THEN "深度参数超出范围(" + STRING(c_MinEngravingDepth) + "-" + STRING(c_MaxEngravingDepth) + "mm)" ELSE ""
+    );
+END_IF;
+END_METHOD
+
+/// <summary>
+/// 设置预设工艺参数方法 - 根据设计选择从配置数组中获取参数
+/// </summary>
+/// <param name="DesignId">设计选择编号(1-3)</param>
+METHOD SetPresetParametersByDesign
+VAR_INPUT
+    DesignId : INT;
+END_VAR
+// 检查设计ID是否在有效范围内
+IF (DesignId >= 1) AND (DesignId <= 3) THEN
+    // 从配置数组中获取对应参数
+    CalculatedEngravingSpeed := c_DesignParameterSets[DesignId].Speed;
+    CalculatedEngravingDepth := c_DesignParameterSets[DesignId].Depth;
+    // 验证预设参数（防止配置错误）
+    ValidateParameterRange(Speed := CalculatedEngravingSpeed, Depth := CalculatedEngravingDepth);
+ELSE
+    // 无效设计选择，重置参数
+    CalculatedEngravingSpeed := 0.0;
+    CalculatedEngravingDepth := 0.0;
+    IsValidParameterSet := FALSE;
+    ValidationErrorMessage := "无效的设计选择，必须为1-3之间的整数";
+END_IF;
+END_METHOD
+
+/// <summary>
+/// 设置外部输入参数方法 - 使用外部提供的雕刻参数
+/// </summary>
+/// <param name="Speed">外部输入的雕刻速度(mm/s)</param>
+/// <param name="Depth">外部输入的雕刻深度(mm)</param>
+METHOD SetExternalParameters
+VAR_INPUT
+    Speed : REAL;
+    Depth : REAL;
+END_VAR
+// 直接使用外部输入参数
+CalculatedEngravingSpeed := Speed;
+CalculatedEngravingDepth := Depth;
+// 验证外部输入参数范围
+ValidateParameterRange(Speed := CalculatedEngravingSpeed, Depth := CalculatedEngravingDepth);
+END_METHOD
+
+/// <summary>
+/// 更新电机状态方法 - 根据参数有效性控制电机使能
+/// </summary>
+METHOD UpdateMotorControlStates
+IF IsValidParameterSet THEN
+    ZAxisMotorEnabled := TRUE;
+    EngravingMotorEnabled := TRUE;
+ELSE
+    ZAxisMotorEnabled := FALSE;
+    EngravingMotorEnabled := FALSE;
+END_IF;
+END_METHOD
+
+/// <summary>
+/// 主处理逻辑 - 每个扫描周期执行一次
+/// </summary>
+METHOD MainProcessing
+// 检测设计选择变化或参数模式切换
+DesignParametersChanged := (DesignSelection <> PreviousDesignSelection) OR UseExternalParameters;
+
+IF DesignParametersChanged THEN
+    // 根据参数模式选择设置对应的参数
+    IF UseExternalParameters THEN
+        // 使用外部输入参数模式
+        SetExternalParameters(Speed := ExternalEngravingSpeed, Depth := ExternalEngravingDepth);
+    ELSE
+        // 使用预设参数模式
+        SetPresetParametersByDesign(DesignId := DesignSelection);
+        // 更新历史设计选择记录
+        PreviousDesignSelection := DesignSelection;
+    END_IF;
+END_IF;
+
+// 更新电机控制状态
+UpdateMotorControlStates();
+END_METHOD
+
+// 主程序入口 - 每个PLC周期自动调用
+MainProcessing();
+
+// 形式化属性断言 - 符合需求中的形式化属性要求
+// 断言1: 如果参数有效，则电机必须激活
+ASSERT(NOT IsValidParameterSet OR (ZAxisMotorEnabled AND EngravingMotorEnabled));
+// 断言2: 如果参数无效，则电机必须禁用
+ASSERT(IsValidParameterSet OR (NOT ZAxisMotorEnabled AND NOT EngravingMotorEnabled));
+// 断言3: 如果使用预设参数且设计选择有效，则必须使用对应的预设参数
+ASSERT(UseExternalParameters OR (DesignSelection < 1) OR (DesignSelection > 3) OR 
+      (CalculatedEngravingSpeed = c_DesignParameterSets[DesignSelection].Speed AND 
+       CalculatedEngravingDepth = c_DesignParameterSets[DesignSelection].Depth));
+// 断言4: 雕刻速度必须在有效范围内
+ASSERT(CalculatedEngravingSpeed = 0.0 OR 
+      ((CalculatedEngravingSpeed >= c_MinEngravingSpeed) AND (CalculatedEngravingSpeed <= c_MaxEngravingSpeed)));
+// 断言5: 雕刻深度必须在有效范围内
+ASSERT(CalculatedEngravingDepth = 0.0 OR 
+      ((CalculatedEngravingDepth >= c_MinEngravingDepth) AND (CalculatedEngravingDepth <= c_MaxEngravingDepth)));
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

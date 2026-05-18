@@ -1,0 +1,76 @@
+<TcPlcObject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="FB_CourseDifferenceControl" Version="1.0.0.1" ProductVersion="3.1.4024.17">
+  <POU>
+    <Interface>
+      <InputVars>
+        <POUVar Name="KOMPASS_GRAD" DataType="INT" />
+        <POUVar Name="KURS" DataType="INT" />
+      </InputVars>
+      <OutputVars>
+        <POUVar Name="KURS_DIFF" DataType="INT" />
+        <POUVar Name="ErrorFlag" DataType="BOOL" />
+        <POUVar Name="ErrorCode" DataType="INT" />
+      </OutputVars>
+    </Interface>
+    <Implementation>
+      <ST>
+VAR
+    nDiff : INT;
+    nCompassGrad : INT;
+    nKurs : INT;
+END_VAR
+
+// 初始化错误标志
+ErrorFlag := FALSE;
+ErrorCode := 0;
+
+// 输入变量范围检查
+IF (KOMPASS_GRAD < -3600) OR (KOMPASS_GRAD > 3600) THEN
+    ErrorFlag := TRUE;
+    ErrorCode := 1; // 指南针角度超出范围
+    nCompassGrad := LIMIT(-3600, KOMPASS_GRAD, 3600);
+ELSE
+    nCompassGrad := KOMPASS_GRAD;
+END_IF;
+
+IF (KURS < -3600) OR (KURS > 3600) THEN
+    ErrorFlag := TRUE;
+    ErrorCode := ErrorCode OR 2; // 航向角度超出范围
+    nKurs := LIMIT(-3600, KURS, 3600);
+ELSE
+    nKurs := KURS;
+END_IF;
+
+// 原始功能逻辑
+IF nCompassGrad < 0 THEN
+    KURS_DIFF := 0;
+ELSE
+    nDiff := nKurs - nCompassGrad;
+    
+    IF nDiff > 1800 THEN
+        KURS_DIFF := nDiff - 3600;
+    ELSIF nDiff < -1800 THEN
+        KURS_DIFF := nDiff + 3600;
+    ELSE
+        KURS_DIFF := nDiff;
+    END_IF;
+END_IF;
+
+// 输出变量范围检查
+IF (KURS_DIFF < -1800) OR (KURS_DIFF > 1800) THEN
+    ErrorFlag := TRUE;
+    ErrorCode := ErrorCode OR 4; // 输出超出范围
+    KURS_DIFF := LIMIT(-1800, KURS_DIFF, 1800);
+END_IF;
+
+(* 形式化属性验证断言 *)
+ASSERT KOMPASS_GRAD < 0 IMPLIES KURS_DIFF = 0;
+ASSERT KOMPASS_GRAD >= 0 AND (nDiff >= -1800 AND nDiff <= 1800) IMPLIES KURS_DIFF = nDiff;
+ASSERT KOMPASS_GRAD >= 0 AND nDiff > 1800 IMPLIES KURS_DIFF = nDiff - 3600;
+ASSERT KOMPASS_GRAD >= 0 AND nDiff < -1800 IMPLIES KURS_DIFF = nDiff + 3600;
+ASSERT ErrorCode = 0 IMPLIES (KURS_DIFF >= -1800 AND KURS_DIFF <= 1800);
+ASSERT ErrorCode = 0 IMPLIES (KOMPASS_GRAD >= -3600 AND KOMPASS_GRAD <= 3600);
+ASSERT ErrorCode = 0 IMPLIES (KURS >= -3600 AND KURS <= 3600);
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

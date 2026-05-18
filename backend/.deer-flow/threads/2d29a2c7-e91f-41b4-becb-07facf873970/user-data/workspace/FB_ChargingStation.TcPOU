@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns="http://www.beckhoff.com/AS/TC/POU" Name="FB_ChargingStation" ID="{5F2D0A00-1E0B-4C3D-9B1F-5A7B8D6E9C3A}">
+  <Declaration>
+    <Comment>电动汽车充电站控制功能块</Comment>
+    <AttributeList>
+      <Attribute Name="TcStyle" Value="1"/>
+      <Attribute Name="TcVersion" Value="3.1.4024.0"/>
+    </AttributeList>
+    <Vars>
+      // 常量定义
+      <Constant Name="MinimumVoltage" Type="LREAL" Value="200.0"/>
+      <Constant Name="MaximumCurrent" Type="LREAL" Value="50.0"/>
+      <Constant Name="MaximumChargingTime" Type="TIME" Value="T#8H"/>
+      
+      // 输入变量
+      <Input Name="EVConnected" Type="BOOL" Comment="电动汽车已连接"/>
+      <Input Name="EVVoltage" Type="LREAL" Comment="电动汽车电池电压 (V)"/>
+      <Input Name="EVCurrent" Type="LREAL" Comment="充电电流 (A)"/>
+      <Input Name="EVStateOfCharge" Type="LREAL" Comment="电动汽车电池电量 (%)"/>
+      
+      // 输出变量
+      <Output Name="EVCharging" Type="BOOL" Comment="充电使能输出"/>
+      <Output Name="ChargingTime" Type="TIME" Comment="累计充电时间"/>
+      <Output Name="ChargingFault" Type="BOOL" Comment="充电故障标志"/>
+      <Output Name="FaultCode" Type="DINT" Comment="故障代码：0=无故障, 1=连接丢失, 2=电压异常, 3=电流超限, 4=超时"/>
+      
+      // 内部变量
+      <Internal Name="StartConditionsMet" Type="BOOL" Comment="启动条件满足标志"/>
+      <Internal Name="StopConditionActive" Type="BOOL" Comment="停止条件激活标志"/>
+      <Internal Name="ChargingTON" Type="TON" Comment="充电时间累计计时器"/>
+    </Vars>
+  </Declaration>
+  <Implementation>
+    <ST>
+      // 启动条件判断
+      StartConditionsMet := EVConnected AND 
+                            (EVVoltage > MinimumVoltage) AND 
+                            (EVCurrent <= MaximumCurrent) AND 
+                            (EVStateOfCharge < 100.0) AND 
+                            (ChargingTON.ET <= MaximumChargingTime);
+
+      // 停止条件判断
+      StopConditionActive := NOT EVConnected OR 
+                             (EVVoltage <= MinimumVoltage) OR 
+                             (EVCurrent > MaximumCurrent) OR 
+                             (EVStateOfCharge >= 100.0) OR 
+                             (ChargingTON.ET > MaximumChargingTime);
+
+      // 充电控制逻辑 - 已简化冗余判断
+      EVCharging := StartConditionsMet;
+      
+      // 充电时间累计计时器
+      ChargingTON(IN := EVCharging, PT := T#24H);
+      ChargingTime := ChargingTON.ET;
+      
+      // 故障诊断逻辑
+      FaultCode := 0;
+      ChargingFault := StopConditionActive AND EVCharging;
+      
+      IF NOT EVConnected THEN
+        FaultCode := 1;
+      ELSIF EVVoltage <= MinimumVoltage THEN
+        FaultCode := 2;
+      ELSIF EVCurrent > MaximumCurrent THEN
+        FaultCode := 3;
+      ELSIF ChargingTON.ET > MaximumChargingTime THEN
+        FaultCode := 4;
+      END_IF;
+      
+      // 形式化验证断言
+      {assert:StartConditionsMet => EVCharging}
+      {assert:(ChargingTON.ET > MaximumChargingTime) => NOT EVCharging}
+      {assert:NOT EVConnected => NOT EVCharging}
+      {assert:(EVVoltage <= MinimumVoltage) => NOT EVCharging}
+      {assert:(EVCurrent > MaximumCurrent) => NOT EVCharging}
+      {assert:(EVStateOfCharge >= 100.0) => NOT EVCharging}
+      {assert:EVCharging => NOT StopConditionActive}
+      {assert:ChargingFault => FaultCode <> 0}
+      {assert:NOT EVCharging AND StopConditionActive => FaultCode <> 0}
+    </ST>
+  </Implementation>
+</POU>

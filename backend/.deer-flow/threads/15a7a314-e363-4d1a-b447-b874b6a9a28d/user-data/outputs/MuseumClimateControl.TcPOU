@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns="http://www Beckhoff.com/XML/ST/2003/03">
+  <AttributeList>
+    <Attribute Name="Name" Value="MuseumClimateControl"/>
+    <Attribute Name="Comment" Value="博物馆气候控制系统功能块"/>
+    <Attribute Name="POUType" Value="FB"/>
+    <Attribute Name="Language" Value="ST"/>
+  </AttributeList>
+  <DeclarationList>
+    <VAR_INPUT>
+      <Variable Name="HumiditySensor" Type="REAL" Comment="湿度传感器输入 (%RH)"/>
+      <Variable Name="TemperatureSensor" Type="REAL" Comment="温度传感器输入 (°C)"/>
+      <Variable Name="LightSensor" Type="BOOL" Comment="光线传感器输入 (TRUE=有光)"/>
+      <Variable Name="LightThreshold" Type="BOOL" Comment="灯光控制阈值 (TRUE=需要关闭灯光)"/>
+    </VAR_INPUT>
+    <VAR_OUTPUT>
+      <Variable Name="HVACSystem" Type="BOOL" Comment="HVAC系统输出 (TRUE=开启)"/>
+      <Variable Name="Humidifier" Type="BOOL" Comment="加湿器输出 (TRUE=开启)"/>
+      <Variable Name="Dehumidifier" Type="BOOL" Comment="除湿器输出 (TRUE=开启)"/>
+      <Variable Name="LightControl" Type="BOOL" Comment="灯光控制输出 (TRUE=开启)"/>
+    </VAR_OUTPUT>
+    <VAR>
+      <Variable Name="HumiditySetpoint" Type="REAL" Value="50.0" Comment="湿度设定值 (%RH)"/>
+      <Variable Name="TemperatureSetpoint" Type="REAL" Value="20.0" Comment="温度设定值 (°C)"/>
+    </VAR>
+  </DeclarationList>
+  <Implementation>
+    <ST>
+      // 湿度控制逻辑
+      Humidifier := (HumiditySensor < HumiditySetpoint) AND NOT Dehumidifier;
+      Dehumidifier := (HumiditySensor > HumiditySetpoint) AND NOT Humidifier;
+      
+      // 温度控制逻辑
+      HVACSystem := (TemperatureSensor <> TemperatureSetpoint);
+      
+      // 灯光控制逻辑
+      LightControl := NOT (LightSensor AND LightThreshold);
+      
+      // 安全互锁：确保加湿器和除湿器不会同时开启
+      IF Humidifier THEN
+        Dehumidifier := FALSE;
+      END_IF;
+      
+      IF Dehumidifier THEN
+        Humidifier := FALSE;
+      END_IF;
+    </ST>
+  </Implementation>
+</POU>

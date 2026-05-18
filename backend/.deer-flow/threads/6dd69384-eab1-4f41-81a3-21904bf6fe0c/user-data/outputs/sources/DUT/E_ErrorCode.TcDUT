@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<DataType xmlns="http://infosys.beckhoff.com/TC3/DataType" Name="E_ErrorCode" Category="Enumeration" Version="1.0.0.0">
+  <Description>电机错误代码枚举</Description>
+  <EnumDeclaration>
+    <EnumEntry Name="NO_ERROR" Value="0" Description="无错误"/>
+    <EnumEntry Name="OVERLOAD" Value="1" Description="过载保护触发"/>
+    <EnumEntry Name="SPEED_OUT_OF_RANGE" Value="2" Description="转速超出范围"/>
+    <EnumEntry Name="START_FAILED" Value="3" Description="启动失败"/>
+    <EnumEntry Name="STOP_FAILED" Value="4" Description="停止失败"/>
+    <EnumEntry Name="CURRENT_OVER_LIMIT" Value="5" Description="电流超限"/>
+  </EnumDeclaration>
+  <Attributes>
+    <Attribute Name="TcVersion" Value="3.1.4024.17"/>
+    <Attribute Name="Guid" Value="{C3D4E5F6-7890-12GB-3456-7890ABCDEF12}"/>
+  </Attributes>
+</DataType>

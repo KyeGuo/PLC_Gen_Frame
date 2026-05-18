@@ -1,0 +1,40 @@
+// GVL_WindowCleaner.TcGVL
+// 高层建筑自动窗户清洁系统全局参数定义
+
+// 系统状态枚举类型定义
+TYPE TCleanState:
+    (
+        STATE_IDLE := 0,       // 空闲状态
+        STATE_ELEVATOR_UP := 1, // 电梯上升状态
+        STATE_ELEVATOR_DOWN := 2, // 电梯下降状态
+        STATE_EMERGENCY := 3,   // 紧急停止状态
+        STATE_COMPLETE := 4     // 清洁完成状态
+    );
+END_TYPE
+
+VAR_GLOBAL CONSTANT
+    // 硬件配置参数
+    EMERGENCY_STOP_POLARITY: BOOL := FALSE;  // 紧急停止常闭触点，按下为FALSE
+    LIMIT_SWITCH_POLARITY: BOOL := TRUE;     // 行程开关常开触点，触发为TRUE
+    
+    // 时间参数（如需扩展使用）
+    CLEANING_DELAY: TIME := T#5S;            // 清洁设备启动延迟
+    ELEVATOR_SPEED_RATE: REAL := 100.0;      // 电梯速度百分比（0-100%）
+    
+    // 故障代码定义
+    FAULT_CODE_NO_ERROR: WORD := 0;          // 无故障
+    FAULT_CODE_EMERGENCY_STOP: WORD := 1;    // 紧急停止触发
+    FAULT_CODE_LIMIT_ERROR: WORD := 2;       // 行程开关故障
+    FAULT_CODE_MOTOR_ERROR: WORD := 3;       // 电机故障
+END_VAR_GLOBAL
+
+VAR_GLOBAL
+    // 系统运行状态
+    SystemState: TCleanState := STATE_IDLE;  // 当前系统状态
+    FaultCode: WORD := FAULT_CODE_NO_ERROR;  // 当前故障代码
+    RuntimeCounter: DINT := 0;                // 系统运行次数计数器
+    
+    // 诊断信息
+    LastEmergencyStopTime: DATE_AND_TIME;    // 最后一次紧急停止时间
+    LastFaultTime: DATE_AND_TIME;            // 最后一次故障发生时间
+END_VAR_GLOBAL

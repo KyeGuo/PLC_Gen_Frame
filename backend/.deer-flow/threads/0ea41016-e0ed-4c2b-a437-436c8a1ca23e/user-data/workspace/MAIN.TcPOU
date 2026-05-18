@@ -1,0 +1,15 @@
+PROGRAM MAIN
+VAR
+END_VAR
+
+// 调用书籍分拣功能块
+BookSortingInstance(
+    RFID1 := GVL_BookSorting.RFID1,
+    RFID2 := GVL_BookSorting.RFID2,
+    RFID3 := GVL_BookSorting.RFID3,
+    Motor => GVL_BookSorting.Motor,
+    Bin1 => GVL_BookSorting.Bin1,
+    Bin2 => GVL_BookSorting.Bin2,
+    Bin3 => GVL_BookSorting.Bin3
+);
+END_PROGRAM

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1" ProductVersion="3.1.4024.17">
+  <POU Name="RetractableRoofControl" Type="FunctionBlock" Id="{D7E6E7C8-1E8A-4F9A-8A7D-1F2E3D4C5B6A}">
+    <Declaration><![CDATA[
+FUNCTION_BLOCK RetractableRoofControl
+VAR_INPUT
+    RainSensor : BOOL; (* 雨传感器输入：TRUE=检测到下雨 *)
+    WindSensor : BOOL; (* 风传感器输入：TRUE=检测到强风 *)
+    TemperatureSensor : REAL; (* 温度传感器输入：单位°C *)
+END_VAR
+VAR_OUTPUT
+    RoofMotor : BOOL; (* 屋顶电机输出：TRUE=关闭/部分关闭屋顶，FALSE=打开屋顶 *)
+END_VAR
+VAR CONSTANT
+    TEMPERATURE_THRESHOLD : REAL := 20.0; (* 温度阈值：低于此值时部分关闭屋顶 *)
+END_VAR
+VAR
+    (* Internal state variables *)
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 可伸缩屋顶控制主逻辑
+// 根据雨、风、温度传感器输入控制屋顶电机
+
+(*
+控制逻辑规则：
+1. 下雨且有风 → RoofMotor=FALSE（完全关闭屋顶）
+2. 仅下雨 → RoofMotor=TRUE（部分关闭屋顶）
+3. 无雨且温度<20°C → RoofMotor=TRUE（轻微关闭屋顶）
+4. 无雨且温度≥20°C → RoofMotor=FALSE（完全打开屋顶）
+*)
+
+// 逻辑判断实现
+// Rule 1: 下雨且有风 - 完全关闭屋顶
+IF RainSensor AND WindSensor THEN
+    RoofMotor := FALSE;
+// Rule 2: 下雨但无风 - 部分关闭屋顶
+ELSIF RainSensor AND NOT WindSensor THEN
+    RoofMotor := TRUE;
+// Rule 3: 不下雨且温度<20°C - 轻微关闭屋顶
+ELSIF NOT RainSensor AND (TemperatureSensor < TEMPERATURE_THRESHOLD) THEN
+    RoofMotor := TRUE;
+// Rule 4: 不下雨且温度≥20°C - 完全打开屋顶
+ELSIF NOT RainSensor AND (TemperatureSensor >= TEMPERATURE_THRESHOLD) THEN
+    RoofMotor := FALSE;
+ELSE
+    RoofMotor := FALSE; // 安全回退：异常状态下关闭屋顶
+END_IF;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

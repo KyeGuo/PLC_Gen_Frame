@@ -1,0 +1,22 @@
+PROGRAM MAIN
+VAR
+    fbMultiplier: FB_RepeatMultiplier;
+    result: BOOL;
+END_VAR
+
+// 初始化输入参数
+fbMultiplier.INPUT_VAR1 := 2;
+fbMultiplier.INPUT_COUNTER := 4;
+
+// 执行乘法运算
+result := fbMultiplier.Execute();
+
+// 获取结果
+g_TestOutputVar1 := fbMultiplier.OUTPUT_VAR1;
+
+// 验证形式化属性
+ASSERT fbMultiplier.OUTPUT_VAR1 = 32 
+    MESSAGE '当INPUT_VAR1=2且INPUT_COUNTER=4时，OUTPUT_VAR1必须为32';
+
+ASSERT fbMultiplier.tempCounter = 0 
+    MESSAGE '循环结束后临时计数器必须为0';

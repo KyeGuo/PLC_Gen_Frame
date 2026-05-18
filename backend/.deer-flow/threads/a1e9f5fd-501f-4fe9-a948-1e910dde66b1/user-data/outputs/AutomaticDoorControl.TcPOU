@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<POU xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="AutomaticDoorControl" Type="FunctionBlock" Version="1.0">
+  <Declaration>
+    <Text><![CDATA[FUNCTION_BLOCK AutomaticDoorControl
+VAR_INPUT
+    ProximitySensor : BOOL;
+    ElapsedTime : DINT; (* Changed from TIME to DINT, representing milliseconds *)
+END_VAR
+
+VAR_OUTPUT
+    DoorOpen : BOOL;
+END_VAR
+
+VAR
+    DoorOpenDuration : DINT := 5000; (* 5 seconds in milliseconds *)
+END_VAR]]></Text>
+  </Declaration>
+  <Implementation>
+    <ST><![CDATA[// Main control logic
+IF NOT ProximitySensor THEN
+    DoorOpen := FALSE;
+ELSE
+    DoorOpen := TRUE;
+    ASSERT(ElapsedTime >= 0); (* Ensure elapsed time is non-negative *)
+END_IF;
+
+// Invariant assertion for open duration
+ASSERT(DoorOpenDuration > 0);]]></ST>
+  </Implementation>
+</POU>

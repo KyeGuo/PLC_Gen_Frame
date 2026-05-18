@@ -1,0 +1,33 @@
+PROGRAM PRG_Main
+VAR
+    fbMotor : FB_MotorControl;
+    bStart : BOOL := FALSE;
+    bStop : BOOL := FALSE;
+    nTargetSpeed : INT := 1500;
+    fCurrent : REAL := 5.0;
+    eState : E_MotorState;
+    eErrorCode : E_ErrorCode;
+    nActualSpeed : INT;
+    bMotorOn : BOOL;
+END_VAR
+
+// 模拟输入
+bStart := TRUE;
+fCurrent := 6.0;
+
+// 调用电机控制FB
+fbMotor(
+    bStart := bStart,
+    bStop := bStop,
+    nTargetSpeed := nTargetSpeed,
+    fCurrent := fCurrent,
+    eState => eState,
+    eErrorCode => eErrorCode,
+    nActualSpeed => nActualSpeed,
+    bMotorOn => bMotorOn
+);
+
+// 输出日志
+IF eState = E_MotorState.FAULT THEN
+    // 记录错误
+END_IF;

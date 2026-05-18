@@ -1,0 +1,55 @@
+FUNCTION_BLOCK StateMachineControl
+VAR_INPUT
+    request : BOOL;
+    done : BOOL;
+END_VAR
+
+VAR_OUTPUT
+    listen : BOOL;
+END_VAR
+
+VAR
+    state : INT := 0;
+    request_prev : BOOL := FALSE;
+    done_prev : BOOL := FALSE;
+    request_edge : BOOL;
+    done_edge : BOOL;
+END_VAR
+
+CONST
+    STATE_IDLE : INT := 0;
+    STATE_PROCESSING : INT := 1;
+END_CONST
+
+// 上升沿检测
+request_edge := request AND NOT request_prev;
+done_edge := done AND NOT done_prev;
+
+// 状态转换逻辑
+CASE state OF
+    STATE_IDLE:
+        // 从Idle到Processing的上升沿触发转换
+        IF request_edge THEN
+            state := STATE_PROCESSING;
+        END_IF;
+        
+    STATE_PROCESSING:
+        // 从Processing到Idle的上升沿触发转换
+        IF done_edge THEN
+            state := STATE_IDLE;
+        END_IF;
+        
+    ELSE:
+        // 异常状态回退机制：任何未知状态自动回退到Idle
+        state := STATE_IDLE;
+END_CASE;
+
+// 输出信号控制
+listen := (state = STATE_IDLE);
+
+// 更新前值用于下一次检测
+request_prev := request;
+done_prev := done;
+
+
+END_FUNCTION_BLOCK

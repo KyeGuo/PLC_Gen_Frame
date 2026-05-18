@@ -1,0 +1,8 @@
+TYPE E_ErrorCode :
+(
+    NO_ERROR := 0,
+    OVERLOAD := 1,
+    SPEED_OUT_OF_RANGE := 2,
+    FAULT_RESET_REQUIRED := 3
+) DINT;
+END_TYPE

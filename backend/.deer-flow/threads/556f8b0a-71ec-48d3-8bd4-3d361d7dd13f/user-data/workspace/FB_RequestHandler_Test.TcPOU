@@ -1,0 +1,60 @@
+FUNCTION_BLOCK FB_RequestHandler_Test
+VAR
+    fbHandler : FB_RequestHandler;
+    
+    // 测试输入变量
+    testRequest : BOOL := FALSE;
+    testDone : BOOL := FALSE;
+    
+    // 测试输出变量
+    testListen : BOOL;
+    
+    // 测试步骤控制
+    testStep : INT := 0;
+    testCycle : INT := 0;
+END_VAR
+
+// 测试逻辑
+CASE testStep OF
+    0:  // 初始化
+        fbHandler(request := testRequest, done := testDone, listen => testListen);
+        IF testListen THEN
+            // 初始状态验证通过，进入下一步
+            testStep := 1;
+        END_IF;
+    
+    1:  // 测试状态转换：监听->处理
+        testRequest := TRUE;
+        fbHandler(request := testRequest, done := testDone, listen => testListen);
+        IF NOT testListen THEN
+            // 状态转换验证通过，进入下一步
+            testStep := 2;
+            testRequest := FALSE;  // 清除请求信号
+        END_IF;
+    
+    2:  // 测试保持处理状态
+        testCycle := testCycle + 1;
+        fbHandler(request := testRequest, done := testDone, listen => testListen);
+        IF testCycle >= 5 THEN
+            // 保持状态验证通过，进入下一步
+            testStep := 3;
+            testCycle := 0;
+        END_IF;
+    
+    3:  // 测试状态转换：处理->监听
+        testDone := TRUE;
+        fbHandler(request := testRequest, done := testDone, listen => testListen);
+        IF testListen THEN
+            // 状态转换验证通过，测试完成
+            testStep := 4;
+            testDone := FALSE;  // 清除完成信号
+        END_IF;
+    
+    4:  // 测试完成
+        // 可以添加结果输出逻辑
+END_CASE;
+
+// 测试结果输出
+IF testStep = 4 THEN
+    // 测试通过，可以设置一个输出信号或者显示信息
+END_IF;

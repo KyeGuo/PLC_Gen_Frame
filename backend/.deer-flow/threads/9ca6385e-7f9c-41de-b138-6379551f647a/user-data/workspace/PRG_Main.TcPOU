@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1" ProductVersion="3.1.4024.17">
+  <POU Name="PRG_Main" Id="{98765432-10FE-DCBA-9876-543210FEDCBA}" Public="true" Datatype="" InputVars="" OutputVars="" InOutVars="" CodeFlags="1">
+    <Declaration><![CDATA[
+PROGRAM PRG_Main
+VAR
+  // 电机控制功能块实例
+  MotorCtrl : FB_MotorControl;
+  
+  // 测试输入
+  TestEnable : BOOL := TRUE;
+  TestStart : BOOL := FALSE;
+  TestStop : BOOL := FALSE;
+  TestForward : BOOL := TRUE;
+  TestReverse : BOOL := FALSE;
+  TestSpeed : REAL := 50.0;
+  TestReset : BOOL := FALSE;
+  TestEStop : BOOL := FALSE;
+  
+  // 模拟反馈信号
+  SimCurrent : REAL := 8.0;
+  SimTemperature : REAL := 75.0;
+  
+  // 测试计数器
+  TestCounter : UINT := 0;
+  TestScenario : UINT := 0;
+  
+  // 诊断显示
+  DiagnosticMsg : STRING[255];
+  FaultHistoryMsg : ARRAY[0..9] OF STRING[255];
+END_VAR
+    ]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// 功能块输入连接
+MotorCtrl.Enable := TestEnable;
+MotorCtrl.Start := TestStart;
+MotorCtrl.Stop := TestStop;
+MotorCtrl.Forward := TestForward;
+MotorCtrl.Reverse := TestReverse;
+MotorCtrl.SpeedPercent := TestSpeed;
+MotorCtrl.Reset := TestReset;
+MotorCtrl.EStop := TestEStop;
+
+// 模拟反馈连接
+MotorCtrl.ActualCurrent := SimCurrent;
+MotorCtrl.ActualTemperature := SimTemperature;
+
+// 配置参数
+MotorCtrl.RatedCurrent := 10.0;
+MotorCtrl.OvercurrentThreshold := 15.0;
+MotorCtrl.OvertemperatureThreshold := 120.0;
+MotorCtrl.ShortCircuitThreshold := 50.0;
+MotorCtrl.OverloadDelay := T#5s;
+
+// 执行电机控制
+MotorCtrl.Execute();
+
+// 模拟场景测试
+CASE TestScenario OF
+  0: // 初始状态 - 等待启动
+    DiagnosticMsg := '初始状态：等待启动命令';
+    TestStop := TRUE;
+    
+  1: // 正转运行
+    TestStop := FALSE;
+    TestStart := TRUE;
+    TestForward := TRUE;
+    TestReverse := FALSE;
+    TestSpeed := 50.0;
+    SimCurrent := 8.5;
+    SimTemperature := 80.0;
+    DiagnosticMsg := '测试场景：正转运行，50%速度';
+    
+  2: // 切换到反转
+    TestForward := FALSE;
+    TestReverse := TRUE;
+    DiagnosticMsg := '测试场景：切换到反转运行';
+    
+  3: // 速度增加到100%
+    TestSpeed := 100.0;
+    SimCurrent := 9.8;
+    DiagnosticMsg := '测试场景：满速运行';
+    
+  4: // 模拟过流故障
+    SimCurrent := 16.0;
+    DiagnosticMsg := '测试场景：模拟过流故障';
+    
+  5: // 复位故障
+    TestReset := TRUE;
+    SimCurrent := 8.5;
+    DiagnosticMsg := '测试场景：复位故障，准备重新启动';
+    
+  6: // 模拟过载故障
+    SimCurrent := 12.5; // 125%额定电流
+    DiagnosticMsg := '测试场景：模拟过载故障（持续5秒触发）';
+    
+  7: // 急停测试
+    TestEStop := TRUE;
+    DiagnosticMsg := '测试场景：触发急停';
+    
+  8: // 速度超范围测试
+    TestSpeed := 110.0;
+    DiagnosticMsg := '测试场景：速度给定超范围';
+END_CASE
+
+// 自动切换测试场景（每2000次循环切换一次）
+TestCounter := TestCounter + 1;
+IF TestCounter >= 2000 THEN
+  TestCounter := 0;
+  TestScenario := (TestScenario + 1) MOD 9;
+  TestReset := FALSE;
+  TestEStop := FALSE;
+END_IF
+
+// 更新故障历史显示
+FOR i := 0 TO 9 DO
+  IF MotorCtrl.DiagData.FaultHistory[i].FaultCode <> E_FaultCode.NoFault THEN
+    FaultHistoryMsg[i] := CONCAT(
+      '故障 ', INT_TO_STRING(i+1), ': ', 
+      NAMEOF(MotorCtrl.DiagData.FaultHistory[i].FaultCode), 
+      ' - 发生时间: ', DT_TO_STRING(MotorCtrl.DiagData.FaultHistory[i].OccurTime),
+      MotorCtrl.DiagData.FaultHistory[i].IsActive ? ' (未复位)' : ' (已复位)'
+    );
+  ELSE
+    FaultHistoryMsg[i] := '';
+  END_IF
+END_FOR
+
+// 诊断信息更新
+DiagnosticMsg := CONCAT(
+  DiagnosticMsg, 
+  ' | 状态: ', NAMEOF(MotorCtrl.CurrentState),
+  ' | 速度输出: ', INT_TO_STRING(MotorCtrl.AO_Speed),
+  ' | 运行时间: ', TIME_TO_STRING(MotorCtrl.DiagData.RunTimeTotal),
+  ' | 启动次数: ', UINT_TO_STRING(MotorCtrl.DiagData.StartCount),
+  MotorCtrl.bFault ? CONCAT(' | 当前故障: ', NAMEOF(MotorCtrl.nFaultCode)) : ''
+);
+      ]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="4.2.0.19">
+  <TcPOU Name="FC_RecipeSelector" Id="{A1B2C3D4-E5F6-7890-ABCD-1234567890AB}">
+    <Interface>
+      <POUType>Function</POUType>
+      <ImplementationLanguage>ST</ImplementationLanguage>
+      <IOs>
+        <Input Name="i_nCustomerPreference" Datatype="INT" Comment="用户选择的食谱编号" />
+        <Output Name="q_xRequiredBanana" Datatype="BOOL" Comment="是否需要香蕉" />
+        <Output Name="q_xRequiredBerryMix" Datatype="BOOL" Comment="是否需要混合莓" />
+        <Output Name="q_xRequiredSpinach" Datatype="BOOL" Comment="是否需要菠菜" />
+        <Output Name="q_xRequiredYogurt" Datatype="BOOL" Comment="是否需要酸奶" />
+        <Output Name="q_xValidRecipe" Datatype="BOOL" Comment="食谱选择是否有效" />
+      </IOs>
+    </Interface>
+    <Implementation>
+      <ST>
+// 初始化输出
+q_xRequiredBanana := FALSE;
+q_xRequiredBerryMix := FALSE;
+q_xRequiredSpinach := FALSE;
+q_xRequiredYogurt := FALSE;
+q_xValidRecipe := FALSE;
+
+// 根据用户选择设置原料需求
+CASE i_nCustomerPreference OF
+    1: // 食谱1: 香蕉莓果酸奶
+        q_xRequiredBanana := TRUE;
+        q_xRequiredBerryMix := TRUE;
+        q_xRequiredYogurt := TRUE;
+        q_xValidRecipe := TRUE;
+    
+    2: // 食谱2: 莓果菠菜酸奶
+        q_xRequiredBerryMix := TRUE;
+        q_xRequiredSpinach := TRUE;
+        q_xRequiredYogurt := TRUE;
+        q_xValidRecipe := TRUE;
+    
+    3: // 食谱3: 香蕉菠菜酸奶
+        q_xRequiredBanana := TRUE;
+        q_xRequiredSpinach := TRUE;
+        q_xRequiredYogurt := TRUE;
+        q_xValidRecipe := TRUE;
+    
+    ELSE: // 无效食谱
+        q_xValidRecipe := FALSE;
+END_CASE;
+      </ST>
+    </Implementation>
+  </TcPOU>
+</TcPlcObject>

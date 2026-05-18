@@ -1,0 +1,298 @@
+FUNCTION_BLOCK ParkingGarage_TestCases
+VAR_INPUT
+ TestCaseNumber : INT; (* Test case to execute: 1-10 *)
+END_VAR
+VAR_OUTPUT
+ TestPassed : BOOL; (* Test result *)
+ TestMessage : STRING; (* Test result message *)
+END_VAR
+VAR
+ Controller : FB_ParkingGarageController;
+ TestSlot : INT;
+ TestIterations : INT;
+END_VAR
+
+// Initialize controller at startup
+METHOD FB_Init : BOOL
+VAR_INPUT
+ bInitRetains : BOOL;
+ bInCopyCode : BOOL;
+END_VAR
+ Controller.FB_Init(TRUE, TRUE);
+ TestPassed := FALSE;
+ TestMessage := 'Not started';
+ FB_Init := TRUE;
+END_METHOD
+
+// Main test execution
+CASE TestCaseNumber OF
+ 1: // Test Property 1: 电梯不能同时运行
+ TestProperty1();
+ 2: // Test Property 2: 电梯1位置必须在0-50范围内
+ TestProperty2();
+ 3: // Test Property 3: 电梯2位置必须在51-100范围内
+ TestProperty3();
+ 4: // Test Property 4: 电梯1到达目标后必须空闲
+ TestProperty4();
+ 5: // Test Property 5: 电梯2到达目标后必须空闲
+ TestProperty5();
+ 6: // Test Property 6: 电梯不能被分配到同一个车位
+ TestProperty6();
+ 7: // Test Property 7: 电梯1目标必须在0或1-50范围内
+ TestProperty7();
+ 8: // Test Property 8: 电梯2目标必须在0或51-100范围内
+ TestProperty8();
+ 9: // Test Property 9: 忙的电梯必须有有效目标
+ TestProperty9();
+ 10: // Test Property 10: 电梯移动时位置只能变化1个单位
+ TestProperty10();
+ ELSE
+ TestPassed := FALSE;
+ TestMessage := 'Invalid test case number';
+END_CASE
+
+METHOD TestProperty1
+VAR
+ StartTime : DWORD;
+END_VAR
+// 测试两个电梯可以同时运行但不会冲突
+ Controller.NewCarSlot := 10; // Assign to Elevator 1
+ Controller(); // Execute once
+ Controller.NewCarSlot := 60; // Assign to Elevator 2
+ Controller(); // Execute once
+
+ // 运行多个周期
+ FOR TestIterations := 1 TO 20 DO
+ Controller();
+ END_FOR
+
+ // 检查两个电梯是否都在运行
+ IF Controller.Elevator1Busy AND Controller.Elevator2Busy THEN
+ TestPassed := TRUE;
+ TestMessage := 'PASS: 两个电梯可以同时运行在各自的区域';
+ ELSE
+ TestPassed := FALSE;
+ TestMessage := 'FAIL: 电梯不能同时运行';
+ END_IF
+END_METHOD
+
+METHOD TestProperty2
+VAR
+ I : INT;
+END_VAR
+// 测试电梯1位置范围
+ Controller.NewCarSlot := 50; // Assign to top of range
+ Controller();
+
+ // 运行直到电梯到达目标
+ FOR I := 1 TO 100 DO
+ Controller();
+ IF NOT Controller.Elevator1Busy THEN
+ BREAK;
+ END_IF
+ END_FOR
+
+ // 尝试设置超出范围的目标
+ Controller.Elevator1Position := 51; // Force out of range
+ Controller(); // Execute once
+
+ IF (Controller.Elevator1Position >= 0) AND (Controller.Elevator1Position <= 50) THEN
+ TestPassed := TRUE;
+ TestMessage := 'PASS: 电梯1位置在0-50范围内: ' + INT_TO_STRING(Controller.Elevator1Position);
+ ELSE
+ TestPassed := FALSE;
+ TestMessage := 'FAIL: 电梯1位置超出范围: ' + INT_TO_STRING(Controller.Elevator1Position);
+ END_IF
+END_METHOD
+
+METHOD TestProperty3
+VAR
+ I : INT;
+END_VAR
+// 测试电梯2位置范围
+ Controller.NewCarSlot := 100; // Assign to top of range
+ Controller();
+
+ // 运行直到电梯到达目标
+ FOR I := 1 TO 100 DO
+ Controller();
+ IF NOT Controller.Elevator2Busy THEN
+ BREAK;
+ END_IF
+ END_FOR
+
+ // 尝试设置超出范围的目标
+ Controller.Elevator2Position := 50; // Force out of range
+ Controller(); // Execute once
+
+ IF (Controller.Elevator2Position >= 51) AND (Controller.Elevator2Position <= 100) THEN
+ TestPassed := TRUE;
+ TestMessage := 'PASS: 电梯2位置在51-100范围内: ' + INT_TO_STRING(Controller.Elevator2Position);
+ ELSE
+ TestPassed := FALSE;
+ TestMessage := 'FAIL: 电梯2位置超出范围: ' + INT_TO_STRING(Controller.Elevator2Position);
+ END_IF
+END_METHOD
+
+METHOD TestProperty4
+VAR
+ I : INT;
+END_VAR
+// 测试电梯1到达目标后是否空闲
+ Controller.NewCarSlot := 25;
+ Controller();
+
+ // 运行直到电梯到达目标
+ FOR I := 1 TO 100 DO
+ Controller();
+ IF Controller.Elevator1Position = 25 THEN
+ BREAK;
+ END_IF
+ END_FOR
+
+ // 再运行一个周期确保状态更新
+ Controller();
+
+ IF NOT Controller.Elevator1Busy THEN
+ TestPassed := TRUE;
+ TestMessage := 'PASS: 电梯1到达目标后变为空闲';
+ ELSE
+ TestPassed := FALSE;
+ TestMessage := 'FAIL: 电梯1到达目标后仍然忙';
+ END_IF
+END_METHOD
+
+METHOD TestProperty5
+VAR
+ I : INT;
+END_VAR
+// 测试电梯2到达目标后是否空闲
+ Controller.NewCarSlot := 75;
+ Controller();
+
+ // 运行直到电梯到达目标
+ FOR I := 1 TO 100 DO
+ Controller();
+ IF Controller.Elevator2Position = 75 THEN
+ BREAK;
+ END_IF
+ END_FOR
+
+ // 再运行一个周期确保状态更新
+ Controller();
+
+ IF NOT Controller.Elevator2Busy THEN
+ TestPassed := TRUE;
+ TestMessage := 'PASS: 电梯2到达目标后变为空闲';
+ ELSE
+ TestPassed := FALSE;
+ TestMessage := 'FAIL: 电梯2到达目标后仍然忙';
+ END_IF
+END_METHOD
+
+METHOD TestProperty6
+VAR
+ I : INT;
+END_VAR
+// 测试电梯不能被分配到同一个车位
+ // 尝试为两个电梯分配同一个车位
+ Controller.NewCarSlot := 25; // Should go to Elevator 1
+ Controller();
+ Controller.NewCarSlot := 25; // Should be ignored since slot is occupied
+ Controller();
+
+ // 检查两个电梯的目标
+ IF (Controller.Elevator1Target = 25) AND (Controller.Elevator2Target = 0) THEN
+ TestPassed := TRUE;
+ TestMessage := 'PASS: 两个电梯不会被分配到同一个车位';
+ ELSE
+ TestPassed := FALSE;
+ TestMessage := 'FAIL: 电梯可能被分配到同一个车位';
+ END_IF
+END_METHOD
+
+METHOD TestProperty7
+VAR
+ I : INT;
+END_VAR
+// 测试电梯1目标范围
+ // 尝试设置无效目标
+ Controller.Elevator1Target := 51; // Outside Elevator 1's range
+ Controller();
+
+ // 检查目标是否被修正
+ IF (Controller.Elevator1Target = 0) OR ((Controller.Elevator1Target >= 1) AND (Controller.Elevator1Target <= 50)) THEN
+ TestPassed := TRUE;
+ TestMessage := 'PASS: 电梯1目标在有效范围内';
+ ELSE
+ TestPassed := FALSE;
+ TestMessage := 'FAIL: 电梯1目标超出范围: ' + INT_TO_STRING(Controller.Elevator1Target);
+ END_IF
+END_METHOD
+
+METHOD TestProperty8
+VAR
+ I : INT;
+END_VAR
+// 测试电梯2目标范围
+ // 尝试设置无效目标
+ Controller.Elevator2Target := 50; // Outside Elevator 2's range
+ Controller();
+
+ // 检查目标是否被修正
+ IF (Controller.Elevator2Target = 0) OR ((Controller.Elevator2Target >= 51) AND (Controller.Elevator2Target <= 100)) THEN
+ TestPassed := TRUE;
+ TestMessage := 'PASS: 电梯2目标在有效范围内';
+ ELSE
+ TestPassed := FALSE;
+ TestMessage := 'FAIL: 电梯2目标超出范围: ' + INT_TO_STRING(Controller.Elevator2Target);
+ END_IF
+END_METHOD
+
+METHOD TestProperty9
+VAR
+ I : INT;
+END_VAR
+// 测试忙的电梯必须有有效目标
+ // 设置电梯为忙但没有目标
+ Controller.Elevator1Busy := TRUE;
+ Controller.Elevator1Target := 0;
+ Controller();
+
+ IF Controller.Elevator1Busy THEN
+ TestPassed := FALSE;
+ TestMessage := 'FAIL: 电梯忙但没有有效目标';
+ ELSE
+ TestPassed := TRUE;
+ TestMessage := 'PASS: 只有有有效目标的电梯才会忙';
+ END_IF
+END_METHOD
+
+METHOD TestProperty10
+VAR
+ LastPosition : INT;
+ I : INT;
+END_VAR
+// 测试电梯移动时位置只能变化1个单位
+ Controller.NewCarSlot := 10;
+ Controller();
+ LastPosition := Controller.Elevator1Position;
+
+ // 监控电梯移动
+ FOR I := 1 TO 20 DO
+ Controller();
+ IF Controller.Elevator1Moving THEN
+ IF ABS(Controller.Elevator1Position - LastPosition) > 1 THEN
+ TestPassed := FALSE;
+ TestMessage := 'FAIL: 电梯1位置变化超过1个单位';
+ RETURN;
+ END_IF
+ LastPosition := Controller.Elevator1Position;
+ END_IF
+ END_FOR
+
+ TestPassed := TRUE;
+ TestMessage := 'PASS: 电梯1位置每次只变化1个单位';
+END_METHOD
+
+END_FUNCTION_BLOCK

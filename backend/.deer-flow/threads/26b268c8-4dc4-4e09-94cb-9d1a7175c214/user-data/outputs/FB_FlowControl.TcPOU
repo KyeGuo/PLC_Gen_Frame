@@ -1,0 +1,23 @@
+FUNCTION_BLOCK FB_FlowControl
+VAR_INPUT
+    ActualFlow: REAL;                 // 当前流量
+    FlowThreshold: REAL := 0.5;       // 流量阈值(默认0.5)
+END_VAR
+VAR_OUTPUT
+    AgitationMotor: BOOL;             // 搅拌电机控制输出
+END_VAR
+VAR
+    v_FlowValid: BOOL;                // 流量有效性标志
+END_VAR
+
+// 检查流量输入有效性（是否为NaN）
+v_FlowValid := NOT(ActualFlow <> ActualFlow);
+
+// 流量控制逻辑：流量高于阈值时激活搅拌电机
+IF v_FlowValid THEN
+    AgitationMotor := (ActualFlow > FlowThreshold);
+ELSE
+    // 输入无效时关闭搅拌电机，进入安全状态
+    AgitationMotor := FALSE;
+END_IF
+END_FUNCTION_BLOCK

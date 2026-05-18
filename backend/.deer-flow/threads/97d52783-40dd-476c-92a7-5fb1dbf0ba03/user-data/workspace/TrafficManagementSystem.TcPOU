@@ -1,0 +1,36 @@
+FUNCTION_BLOCK TrafficManagementSystem
+VAR_INPUT
+    VehicleCount1 : INT;  // 路口1的车辆计数
+    VehicleCount2 : INT;  // 路口2的车辆计数
+    VehicleCount3 : INT;  // 路口3的车辆计数
+    VehicleCount4 : INT;  // 路口4的车辆计数
+END_VAR
+
+VAR_OUTPUT
+    TrafficLight1 : BOOL; // 路口1交通灯状态(TRUE=绿灯, FALSE=红灯)
+    TrafficLight2 : BOOL; // 路口2交通灯状态
+    TrafficLight3 : BOOL; // 路口3交通灯状态
+    TrafficLight4 : BOOL; // 路口4交通灯状态
+END_VAR
+
+VAR
+    ValidCount1 : INT;
+    ValidCount2 : INT;
+    ValidCount3 : INT;
+    ValidCount4 : INT;
+END_VAR
+
+(* 输入范围验证：确保车辆计数非负，负数视为0处理 *)
+ValidCount1 := MAX(VehicleCount1, 0);
+ValidCount2 := MAX(VehicleCount2, 0);
+ValidCount3 := MAX(VehicleCount3, 0);
+ValidCount4 := MAX(VehicleCount4, 0);
+
+(* 第一对路口：1与2的交通灯控制 *)
+TrafficLight1 := ValidCount1 > ValidCount2;
+TrafficLight2 := NOT TrafficLight1;
+
+(* 第二对路口：3与4的交通灯控制 *)
+TrafficLight3 := ValidCount3 > ValidCount4;
+TrafficLight4 := NOT TrafficLight3;
+END_FUNCTION_BLOCK
