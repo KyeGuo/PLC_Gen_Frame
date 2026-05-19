@@ -1,0 +1,165 @@
+// Parking Lot Management System - Main Function Block
+// TwinCAT 3 PLC Code (ST Language)
+
+FUNCTION_BLOCK FB_ParkingLotManagement
+VAR_INPUT
+    i_EntryVehicleDetect : BOOL;        // Entry vehicle detection signal
+    i_ExitVehicleDetect : BOOL;         // Exit vehicle detection signal
+    i_PickupRequest : BOOL;             // Car pickup request signal
+    i_PickupCarID : UINT;               // Car ID for pickup request
+END_VAR
+VAR_OUTPUT
+    o_EntryGateOpen : BOOL;             // Entry gate open command
+    o_ExitGateOpen : BOOL;              // Exit gate open command
+    o_AssignedParkingSpot : UINT;       // Assigned parking spot number (0 = no spot)
+    o_PickupInProgress : BOOL;          // Pickup operation in progress flag
+    o_PickupSuccess : BOOL;             // Pickup operation success status
+    o_ParkingSpotStatus : ARRAY[1..100] OF BOOL; // Parking spot status (TRUE = occupied)
+END_VAR
+VAR
+    ParkingSpots : ARRAY[1..100] OF BOOL; // Internal parking spot tracking
+    CarSpotMapping : ARRAY[1..100] OF UINT; // Maps car IDs to parking spots
+    NextAvailableSpot : UINT;           // Next available parking spot index
+    PickupInProgress : BOOL;            // Internal pickup in progress flag
+    PickupTargetSpot : UINT;            // Target spot for pickup
+    MoveCarResult : BOOL;               // Result of MoveCarToExitGate function
+END_VAR
+VAR_METHOD
+    METHOD FindNextAvailableSpot : UINT
+        // Find first available parking spot
+        VAR
+            i : UINT;
+        END_VAR
+        FOR i := 1 TO 100 DO
+            IF NOT ParkingSpots[i] THEN
+                FindNextAvailableSpot := i;
+                RETURN;
+            END_IF;
+        END_FOR
+        FindNextAvailableSpot := 0; // No available spots
+    END_METHOD
+
+    METHOD AssignParkingSpot : UINT
+        // Assign parking spot to new vehicle
+        VAR
+            NewSpot : UINT;
+        END_VAR
+        NewSpot := FindNextAvailableSpot();
+        IF NewSpot > 0 THEN
+            ParkingSpots[NewSpot] := TRUE;
+            CarSpotMapping[NewSpot] := GetNextCarID(); // Assume external function provides unique IDs
+        END_IF;
+        AssignParkingSpot := NewSpot;
+    END_METHOD
+
+    METHOD ReleaseParkingSpot
+        VAR_INPUT
+            SpotNumber : UINT;
+        END_VAR
+        IF (SpotNumber >= 1) AND (SpotNumber <= 100) THEN
+            ParkingSpots[SpotNumber] := FALSE;
+            CarSpotMapping[SpotNumber] := 0;
+        END_IF;
+    END_METHOD
+
+    METHOD GetNextCarID : UINT
+        // Implementation would generate unique car IDs
+        // For simulation, increment a counter
+        VAR_STAT
+            CarIDCounter : UINT;
+        END_VAR
+        CarIDCounter := CarIDCounter + 1;
+        GetNextCarID := CarIDCounter;
+    END_METHOD
+END_VAR
+
+// Main Logic
+
+// Entry Gate Management
+IF i_EntryVehicleDetect THEN
+    o_AssignedParkingSpot := AssignParkingSpot();
+    o_EntryGateOpen := (o_AssignedParkingSpot > 0); // Open gate only if spot assigned
+ELSE
+    o_EntryGateOpen := FALSE;
+END_IF;
+
+// Exit Gate Management
+IF i_ExitVehicleDetect THEN
+    // Find car ID at exit and release spot (simplified for example)
+    // In real system, would read car ID from sensor
+    FOR NextAvailableSpot := 1 TO 100 DO
+        IF CarSpotMapping[NextAvailableSpot] = i_PickupCarID THEN
+            ReleaseParkingSpot(NextAvailableSpot);
+            o_ExitGateOpen := TRUE;
+            BREAK;
+        END_IF;
+    END_FOR
+ELSE
+    o_ExitGateOpen := FALSE;
+END_IF;
+
+// Pickup Management
+IF i_PickupRequest AND NOT PickupInProgress THEN
+    // Find parking spot for requested car
+    FOR NextAvailableSpot := 1 TO 100 DO
+        IF CarSpotMapping[NextAvailableSpot] = i_PickupCarID THEN
+            PickupTargetSpot := NextAvailableSpot;
+            PickupInProgress := TRUE;
+            o_PickupInProgress := TRUE;
+            BREAK;
+        END_IF;
+    END_FOR
+END_IF;
+
+IF PickupInProgress THEN
+    MoveCarResult := MoveCarToExitGate(PickupTargetSpot);
+    IF MoveCarResult THEN
+        ReleaseParkingSpot(PickupTargetSpot);
+        PickupInProgress := FALSE;
+        o_PickupInProgress := FALSE;
+        o_PickupSuccess := TRUE;
+        o_ExitGateOpen := TRUE; // Open exit gate for pickup
+    ELSE
+        o_PickupSuccess := FALSE;
+    END_IF;
+END_IF;
+
+// Update output status
+o_ParkingSpotStatus := ParkingSpots;
+END_FUNCTION_BLOCK
+
+// MoveCarToExitGate Function
+FUNCTION MoveCarToExitGate : BOOL
+VAR_INPUT
+    i_SpotNumber : UINT;
+END_VAR
+VAR
+    // Implementation would control car movement mechanics
+    // For simulation, return success after delay
+    DelayTimer : TON;
+END_VAR
+
+DelayTimer(IN := TRUE, PT := T#5S); // Simulate 5 second movement time
+IF DelayTimer.Q THEN
+    MoveCarToExitGate := TRUE;
+    DelayTimer(IN := FALSE);
+ELSE
+    MoveCarToExitGate := FALSE;
+END_IF;
+END_FUNCTION
+
+// Global Variables and Types
+TYPE ParkingSpotStatus :
+STRUCT
+    SpotNumber : UINT;
+    IsOccupied : BOOL;
+    CarID : UINT;
+END_STRUCT
+END_TYPE
+
+GVL_GlobalVariables
+VAR_GLOBAL
+    g_ParkingLotStatus : ARRAY[1..100] OF ParkingSpotStatus;
+    g_AvailableSpots : UINT;
+    g_TotalSpots : UINT := 100;
+END_VAR

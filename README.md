@@ -64,8 +64,8 @@
 
 1. **克隆项目**
 ```bash
-git clone <repository-url>
-cd deer-flow
+git clone https://github.com/KyeGuo/PLC_Gen_Frame.git
+cd PLC_Gen_Frame
 ```
 
 2. **创建并激活虚拟环境**

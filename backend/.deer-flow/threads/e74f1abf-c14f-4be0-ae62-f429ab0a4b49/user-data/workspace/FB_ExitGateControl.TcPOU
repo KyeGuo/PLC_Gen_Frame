@@ -1,0 +1,115 @@
+// Exit Gate Control Function Block
+// Handles parking spot release and exit gate operations
+// Compliance: Property 4, 7, 8
+
+FUNCTION_BLOCK FB_ExitGateControl
+VAR_INPUT
+    i_ExitSensor : BOOL;                    // Exit vehicle detection sensor
+    i_EmergencyStop : BOOL;                 // Emergency stop signal
+    i_CurrentCarID : UINT;                  // ID of car exiting (from reader)
+END_VAR
+VAR_OUTPUT
+    o_GateOpen : BOOL;                      // Gate open command
+    o_ReleasedSpot : UINT;                  // Released parking spot number
+    o_ExitInProgress : BOOL;                // TRUE when exit operation in progress
+    o_ExitSuccess : BOOL;                   // TRUE when exit completed successfully
+END_VAR
+VAR
+    SensorDebounce : TON;                   // Exit sensor debounce timer
+    ExitRequestActive : BOOL;               // Exit request active flag
+    SpotReleaseInProgress : BOOL;           // Spot release active flag
+    ReleasedSpotInternal : UINT;            // Internal released spot storage
+END_VAR
+VAR_METHOD
+    METHOD FindSpotByCarID : UINT
+        // Find parking spot by car ID (Property 4 Compliance)
+        VAR
+            i : UINT;
+        END_VAR
+        
+        FOR i := 1 TO g_TotalParkingSpots DO
+            IF g_CarSpotMapping[i] = i_CurrentCarID THEN
+                // Property 4 Compliance: Verify spot is actually occupied
+                IF g_ParkingSpotStatus[i] THEN
+                    FindSpotByCarID := i;
+                    RETURN;
+                END_IF;
+            END_IF;
+        END_FOR
+        FindSpotByCarID := 0; // Car not found
+    END_METHOD
+    
+    METHOD ReleaseSpot
+        VAR_INPUT
+            SpotNumber : UINT;
+        END_VAR
+        // Release parking spot (Property 7 Compliance)
+        
+        // Property 8 Compliance: Emergency stop interrupts release
+        IF i_EmergencyStop THEN
+            RETURN;
+        END_IF;
+        
+        IF (SpotNumber >= 1) AND (SpotNumber <= g_TotalParkingSpots) THEN
+            g_ParkingSpotStatus[SpotNumber] := FALSE;
+            g_CarSpotMapping[SpotNumber] := 0;
+            g_AvailableSpots := g_AvailableSpots + 1;
+        END_IF;
+    END_METHOD
+END_VAR
+
+// Emergency Stop Handling (Property 8 Compliance)
+IF i_EmergencyStop THEN
+    o_GateOpen := FALSE;
+    o_ExitInProgress := FALSE;
+    o_ExitSuccess := FALSE;
+    o_ReleasedSpot := 0;
+    SpotReleaseInProgress := FALSE;
+    ExitRequestActive := FALSE;
+    SensorDebounce(IN := FALSE);
+    RETURN;
+END_IF;
+
+// Exit Sensor Debounce
+SensorDebounce(IN := i_ExitSensor, PT := T#200MS);
+
+// Detect valid exit request
+IF SensorDebounce.Q AND NOT ExitRequestActive THEN
+    ExitRequestActive := TRUE;
+    SpotReleaseInProgress := TRUE;
+END_IF;
+
+// Handle spot release
+IF SpotReleaseInProgress THEN
+    ReleasedSpotInternal := FindSpotByCarID();
+    
+    // Property 4 Compliance: Only release if car is found and spot is occupied
+    IF ReleasedSpotInternal > 0 THEN
+        ReleaseSpot(ReleasedSpotInternal);
+        o_ReleasedSpot := ReleasedSpotInternal;
+        o_GateOpen := TRUE;
+        o_ExitInProgress := TRUE;
+        o_ExitSuccess := TRUE;
+        
+        // Update vehicle tracking
+        g_TotalVehiclesExited := g_TotalVehiclesExited + 1;
+        g_CurrentExitCarID := 0;
+    ELSE
+        // Car not found or spot already released
+        o_GateOpen := FALSE;
+        o_ExitInProgress := TRUE;
+        o_ExitSuccess := FALSE;
+        o_ReleasedSpot := 0;
+    END_IF;
+    
+    SpotReleaseInProgress := FALSE;
+END_IF;
+
+// Reset when vehicle clears exit sensor
+IF NOT i_ExitSensor AND ExitRequestActive THEN
+    ExitRequestActive := FALSE;
+    o_GateOpen := FALSE;
+    o_ExitInProgress := FALSE;
+    o_ReleasedSpot := 0;
+END_IF;
+END_FUNCTION_BLOCK

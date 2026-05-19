@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TCPlcOpcUa">
+  <POU Type="PROGRAM" Name="Main" Id="{Main-1234-5678-90AB-CDEF01234567}">
+    <Declaration>
+      PROGRAM Main
+      VAR
+        // 边沿检测变量
+        StartEdge: BOOL;
+        StopEdge: BOOL;
+        ResetEdge: BOOL;
+        
+        // 上次状态变量
+        LastOvenStatus: BOOL;
+        LastBakingComplete: BOOL;
+        
+        // 传感器输入模拟（实际项目中应连接真实IO）
+        // 注意：在实际应用中，这些变量应该映射到物理IO
+        i_TemperatureSensor: AT %IW0.0: REAL := 25.0; // 温度传感器输入
+        i_HumiditySensor: AT %IW2.0: REAL := 45.0;    // 湿度传感器输入
+        
+        // 输出控制（实际项目中应连接真实IO）
+        q_HeatingElement: AT %QX0.0: BOOL;   // 加热元件输出
+        q_CoolingElement: AT %QX0.1: BOOL;   // 冷却元件输出
+        q_HumidityControl: AT %QX0.2: BOOL;  // 加湿控制输出
+        q_DehumidifierControl: AT %QX0.3: BOOL; // 除湿控制输出
+        
+        // HMI 按钮输入（实际项目中应连接HMI）
+        i_StartButton: AT %IX0.0: BOOL;  // 启动按钮
+        i_StopButton: AT %IX0.1: BOOL;   // 停止按钮
+        i_ResetButton: AT %IX0.2: BOOL;  // 复位按钮
+      END_VAR
+    </Declaration>
+    <Implementation>
+      <ST>
+        // 初始化系统配置
+        IF NOT OvenController.OvenStatus AND NOT LastOvenStatus THEN
+          SystemConfig.DefaultTemperature := DEFAULT_TEMPERATURE;
+          SystemConfig.DefaultHumidity := DEFAULT_HUMIDITY;
+          SystemConfig.DefaultBakingTime := DEFAULT_BAKING_TIME;
+          SystemConfig.TemperatureThreshold := DEFAULT_TEMP_THRESHOLD;
+          SystemConfig.HumidityThreshold := DEFAULT_HUMID_THRESHOLD;
+          
+          // 初始化HMI设定值
+          HMI.SetTemperature := DEFAULT_TEMPERATURE;
+          HMI.SetHumidity := DEFAULT_HUMIDITY;
+          HMI.SetBakingTime := DEFAULT_BAKING_TIME;
+        END_IF;
+        
+        // 边沿检测
+        StartEdge := i_StartButton AND NOT StartEdge;
+        StopEdge := i_StopButton AND NOT StopEdge;
+        ResetEdge := i_ResetButton AND NOT ResetEdge;
+        
+        // 调用烤箱控制功能块
+        OvenController(
+          TemperatureSensor := i_TemperatureSensor,
+          HumiditySensor := i_HumiditySensor,
+          OvenTemperature := HMI.SetTemperature,
+          OvenHumidity := HMI.SetHumidity,
+          BakingTime := HMI.SetBakingTime,
+          HeatingThreshold := SystemConfig.TemperatureThreshold,
+          HumidityThreshold := SystemConfig.HumidityThreshold,
+          Start := StartEdge,
+          Stop := StopEdge,
+          Reset := ResetEdge,
+          
+          HeatingElement => q_HeatingElement,
+          CoolingElement => q_CoolingElement,
+          HumidityControl => q_HumidityControl,
+          DehumidifierControl => q_DehumidifierControl,
+          
+          OvenStatus => HMI.OvenStatus,
+          BakingComplete => HMI.BakingComplete,
+          Error => , // 可以连接到错误指示灯
+          ErrorCode => HMI.ErrorCode,
+          
+          ElapsedTime => HMI.ElapsedTime,
+          RemainingTime => HMI.RemainingTime,
+          CurrentTemperature => HMI.CurrentTemperature,
+          CurrentHumidity => HMI.CurrentHumidity
+        );
+        
+        // 更新运行数据记录
+        IF OvenController.BakingComplete AND NOT LastBakingComplete THEN
+          OperationLog.TotalBakes := OperationLog.TotalBakes + 1;
+          OperationLog.TotalBakingTime := OperationLog.TotalBakingTime + OvenController.ElapsedTime;
+          OperationLog.LastBakeTime := OvenController.ElapsedTime;
+          OperationLog.LastBakeTemperature := HMI.SetTemperature;
+        END_IF;
+        
+        // 安全监测 - 过温保护
+        IF i_TemperatureSensor > 250.0 THEN
+          // 温度超过250°C时强制停止
+          OvenController.Stop := TRUE;
+          OvenController.ErrorCode := ERR_OVERHEAT;
+        END_IF;
+        
+        // 更新状态到UDT数据结构
+        SystemConfig := SystemConfig; // 保持配置
+        
+        // 更新状态变量
+        LastOvenStatus := OvenController.OvenStatus;
+        LastBakingComplete := OvenController.BakingComplete;
+        
+        // HMI 数据同步
+        HMI.CurrentTemperature := i_TemperatureSensor;
+        HMI.CurrentHumidity := i_HumiditySensor;
+        HMI.ElapsedTime := OvenController.ElapsedTime;
+        HMI.RemainingTime := OvenController.RemainingTime;
+        HMI.OvenStatus := OvenController.OvenStatus;
+        HMI.BakingComplete := OvenController.BakingComplete;
+        HMI.ErrorCode := OvenController.ErrorCode;
+        
+        // 错误处理 - 当发生错误时记录并触发报警
+        IF OvenController.Error THEN
+          CASE OvenController.ErrorCode OF
+            ERR_TEMP_SENSOR:
+              // 温度传感器错误处理
+            ERR_HUMIDITY_SENSOR:
+              // 湿度传感器错误处理
+            ERR_OVERHEAT:
+              // 过温错误处理
+            ERR_SYSTEM:
+              // 系统错误处理
+          END_CASE;
+        END_IF;
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

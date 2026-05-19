@@ -1,0 +1,41 @@
+// Global Variables for Parking Lot Automation System
+// Contains system-wide configuration and status information
+
+GVL_ParkingSystem
+VAR_GLOBAL
+    // System Configuration
+    g_TotalParkingSpots : UINT := 100;      // Total number of parking spots
+    g_ParkingSpotRange : UINT := 100;       // Maximum spot number (1..100)
+    
+    // System Status
+    g_EmergencyStop : BOOL := FALSE;        // Emergency stop activation flag
+    g_SystemOperational : BOOL := TRUE;     // Overall system operational status
+    g_SystemStatus : UINT := 0;             // System status code (0=Normal, 1=Emergency, 2=Fault)
+    
+    // Parking Spot Management
+    g_ParkingSpotStatus : ARRAY[1..100] OF BOOL;  // Parking spot occupancy status (TRUE=occupied)
+    g_CarSpotMapping : ARRAY[1..100] OF UINT;     // Maps car IDs to parking spots
+    g_AvailableSpots : UINT := 100;               // Count of available parking spots
+    
+    // Vehicle Tracking
+    g_LastCarID : UINT := 0;                // Last assigned vehicle ID
+    g_CurrentEntryCarID : UINT := 0;        // Current entry vehicle ID
+    g_CurrentExitCarID : UINT := 0;         // Current exit vehicle ID
+    g_CurrentPickupCarID : UINT := 0;       // Current pickup vehicle ID
+    
+    // Operation Flags
+    g_EntryInProgress : BOOL := FALSE;      // Entry operation in progress
+    g_ExitInProgress : BOOL := FALSE;       // Exit operation in progress
+    g_PickupInProgress : BOOL := FALSE;     // Pickup operation in progress
+    g_VehicleMovementInProgress : BOOL := FALSE;  // Vehicle movement in progress
+    
+    // Performance Counters
+    g_TotalVehiclesEntered : UDINT := 0;    // Total vehicles entered system
+    g_TotalVehiclesExited : UDINT := 0;     // Total vehicles exited system
+    g_TotalPickupsPerformed : UDINT := 0;   // Total successful pickups performed
+    
+    // Diagnostic Information
+    g_LastErrorTime : DT;                   // Timestamp of last error occurrence
+    g_LastErrorCode : UINT;                 // Last error code
+    g_LastErrorLocation : STRING(80);       // Location of last error
+END_VAR

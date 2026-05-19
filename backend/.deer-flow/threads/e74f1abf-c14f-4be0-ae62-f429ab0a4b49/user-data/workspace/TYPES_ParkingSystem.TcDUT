@@ -1,0 +1,66 @@
+// Data Type Definitions for Parking Lot Automation System
+// Contains all custom data types used in the system
+
+// Parking Spot Status Structure
+TYPE DUT_ParkingSpotStatus :
+STRUCT
+    SpotNumber : UINT;                      // Parking spot number (1..100)
+    IsOccupied : BOOL;                      // TRUE if spot is occupied
+    AssignedCarID : UINT;                   // ID of car assigned to this spot
+    AssignmentTime : DT;                    // Timestamp when spot was assigned
+    LastUpdated : DT;                       // Timestamp of last status update
+    SpotType : UINT;                        // 0=Regular, 1=Handicap, 2=Electric Vehicle
+END_STRUCT
+END_TYPE
+
+// Vehicle Information Structure
+TYPE DUT_VehicleInformation :
+STRUCT
+    CarID : UINT;                           // Unique vehicle identifier
+    EntryTime : DT;                         // Time vehicle entered parking structure
+    ExitTime : DT;                          // Time vehicle exited parking structure
+    AssignedSpot : UINT;                    // Parking spot assigned to vehicle
+    PaymentStatus : BOOL;                   // TRUE if parking fees paid
+    VehicleType : UINT;                     // 0=Car, 1=Motorcycle, 2=SUV, 3=Truck
+END_STRUCT
+END_TYPE
+
+// System Status Structure
+TYPE DUT_SystemStatus :
+STRUCT
+    OperationalStatus : UINT;               // 0=Normal, 1=Emergency, 2=Fault, 3=Maintenance
+    AvailableSpots : UINT;                  // Number of available parking spots
+    OccupiedSpots : UINT;                   // Number of occupied parking spots
+    EntryOperationsInProgress : BOOL;       // TRUE if entry operations in progress
+    ExitOperationsInProgress : BOOL;        // TRUE if exit operations in progress
+    PickupOperationsInProgress : UINT;      // Number of active pickup operations
+    LastSystemEvent : DT;                   // Timestamp of last system event
+    EmergencyStopActive : BOOL;             // TRUE if emergency stop activated
+END_STRUCT
+END_TYPE
+
+// Error Log Structure
+TYPE DUT_ErrorLogEntry :
+STRUCT
+    ErrorCode : UINT;                       // Unique error code
+    ErrorTime : DT;                         // Timestamp when error occurred
+    ErrorLocation : STRING(80);             // Location (function block, line number) of error
+    ErrorDescription : STRING(128);         // Human-readable error description
+    ErrorSeverity : UINT;                   // 0=Warning, 1=Error, 2=Fatal
+    ErrorCleared : BOOL;                    // TRUE if error has been cleared
+END_STRUCT
+END_TYPE
+
+// Parking Lot Configuration Structure
+TYPE DUT_ParkingLotConfiguration :
+STRUCT
+    TotalSpots : UINT;                      // Total number of parking spots
+    HandicapSpots : UINT;                   // Number of handicap accessible spots
+    EVChargingSpots : UINT;                 // Number of electric vehicle charging spots
+    EntryGateCount : UINT;                  // Number of entry gates
+    ExitGateCount : UINT;                   // Number of exit gates
+    MaximumVehicleSize : UINT;              // Maximum vehicle size allowed (0=Unrestricted)
+    ParkingRatePerHour : REAL;              // Parking fee per hour
+    EmergencyResponseTime : TIME;           // Required emergency response time
+END_STRUCT
+END_TYPE

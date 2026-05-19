@@ -1,0 +1,54 @@
+PROGRAM Main
+VAR
+    // 边沿检测变量
+    StartEdge: BOOL;
+    StopEdge: BOOL;
+    ResetEdge: BOOL;
+    
+    // 上次状态变量
+    LastOvenStatus: BOOL;
+    LastBakingComplete: BOOL;
+    
+    // 传感器输入模拟（实际项目中应连接真实IO）
+    // 注意：在实际应用中，这些变量应该映射到物理IO
+    i_TemperatureSensor: AT %IW0.0: REAL := 25.0; // 温度传感器输入
+    i_HumiditySensor: AT %IW2.0: REAL := 45.0;    // 湿度传感器输入
+    
+    // 输出控制（实际项目中应连接真实IO）
+    q_HeatingElement: AT %QX0.0: BOOL;   // 加热元件输出
+    q_CoolingElement: AT %QX0.1: BOOL;   // 冷却元件输出
+    q_HumidityControl: AT %QX0.2: BOOL;  // 加湿控制输出
+    q_DehumidifierControl: AT %QX0.3: BOOL; // 除湿控制输出
+    
+    // HMI 按钮输入（实际项目中应连接HMI）
+    i_StartButton: AT %IX0.0: BOOL;  // 启动按钮
+    i_StopButton: AT %IX0.1: BOOL;   // 停止按钮
+    i_ResetButton: AT %IX0.2: BOOL;  // 复位按钮
+    
+    // 烤箱控制功能块实例
+    OvenController: FB_BakeryOvenControl;
+END_VAR
+
+// 边沿检测
+StartEdge := i_StartButton AND NOT StartEdge;
+StopEdge := i_StopButton AND NOT StopEdge;
+ResetEdge := i_ResetButton AND NOT ResetEdge;
+
+// 调用烤箱控制功能块
+OvenController(
+    TemperatureSensor := i_TemperatureSensor,
+    HumiditySensor := i_HumiditySensor,
+    OvenTemperature := 200.0, // 临时设定温度
+    OvenHumidity := 50.0,    // 临时设定湿度
+    BakingTimeSet := T#30M,  // 临时设定烘焙时间
+    HeatingThreshold := 5.0, // 温度阈值
+    HumidityThreshold := 5.0, // 湿度阈值
+    OvenStart := StartEdge,
+    OvenStop := StopEdge
+);
+
+// 将功能块输出映射到物理输出
+q_HeatingElement := OvenController.HeatingElement;
+q_CoolingElement := OvenController.CoolingElement;
+q_HumidityControl := OvenController.HumidityControl;
+q_DehumidifierControl := OvenController.DehumidityControl;

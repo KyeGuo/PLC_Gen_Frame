@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TCPlcOpcUa">
+  <DUT Name="UDT_OvenControl" Id="{UDT_OvenControl-1234-5678-90AB-CDEF01234567}">
+    <Declaration>
+      TYPE UDT_OvenControl:
+      STRUCT
+        // 系统配置参数
+        Configuration: STRUCT
+          DefaultTemperature: REAL := 180.0; // 默认烘焙温度(°C)
+          DefaultHumidity: REAL := 60.0;    // 默认烘焙湿度(%RH)
+          DefaultBakingTime: TIME := T#30M; // 默认烘焙时间
+          TemperatureThreshold: REAL := 5.0; // 温度控制阈值(°C)
+          HumidityThreshold: REAL := 5.0;   // 湿度控制阈值(%RH)
+        END_STRUCT;
+        
+        // 传感器数据
+        Sensors: STRUCT
+          Temperature: REAL; // 当前温度(°C)
+          Humidity: REAL;    // 当前湿度(%RH)
+        END_STRUCT;
+        
+        // 输出控制信号
+        Outputs: STRUCT
+          HeatingElement: BOOL;   // 加热元件控制
+          CoolingElement: BOOL;   // 冷却元件控制
+          HumidityControl: BOOL;  // 加湿控制
+          DehumidifierControl: BOOL; // 除湿控制
+        END_STRUCT;
+        
+        // 系统状态
+        Status: STRUCT
+          OvenRunning: BOOL;      // 烤箱运行状态
+          BakingComplete: BOOL;   // 烘焙完成标志
+          Error: BOOL;            // 错误标志
+          ErrorCode: WORD;        // 错误代码
+          ElapsedTime: TIME;      // 已烘焙时间
+          RemainingTime: TIME;    // 剩余烘焙时间
+        END_STRUCT;
+        
+        // 操作指令
+        Commands: STRUCT
+          Start: BOOL;  // 启动指令
+          Stop: BOOL;   // 停止指令
+          Reset: BOOL;  // 复位指令
+        END_STRUCT;
+      END_STRUCT;
+      END_TYPE
+    </Declaration>
+  </DUT>
+</TcPlcObject>

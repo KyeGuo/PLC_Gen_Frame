@@ -1,0 +1,137 @@
+// Entry Gate Control Function Block
+// Handles parking spot assignment and entry gate operations
+// Compliance: Property 1, 2, 3, 6, 8
+
+FUNCTION_BLOCK FB_EntryGateControl
+VAR_INPUT
+    i_EntrySensor : BOOL;                   // Entry vehicle detection sensor
+    i_EmergencyStop : BOOL;                 // Emergency stop signal
+    i_RetrievalInProgress : BOOL;           // TRUE if pickup operation in progress
+    i_AvailableSpots : UINT;                // Number of available parking spots
+END_VAR
+VAR_OUTPUT
+    o_GateOpen : BOOL;                      // Gate open command
+    o_AssignedSpot : UINT;                  // Assigned parking spot number (0 if none)
+    o_LotFull : BOOL;                       // TRUE when no available spots
+    o_EntryInProgress : BOOL;               // TRUE when entry operation in progress
+END_VAR
+VAR
+    SensorDebounce : TON;                   // Entry sensor debounce timer
+    EntryRequestActive : BOOL;              // Entry request active flag
+    SpotAssignmentInProgress : BOOL;        // Spot assignment active flag
+    AssignedSpotInternal : UINT;            // Internal assigned spot storage
+END_VAR
+VAR_METHOD
+    METHOD FindNextAvailableSpot : UINT
+        // Find first available parking spot (Property 1 Compliance)
+        VAR
+            i : UINT;
+        END_VAR
+        
+        // Property 6 Compliance: No assignment during retrieval
+        IF i_RetrievalInProgress THEN
+            FindNextAvailableSpot := 0;
+            RETURN;
+        END_IF;
+        
+        // Property 2 Compliance: Check if lot is full
+        IF i_AvailableSpots = 0 THEN
+            FindNextAvailableSpot := 0;
+            RETURN;
+        END_IF;
+        
+        // Find first available spot (implementation would query global status)
+        // This is a simplified version - in production, use global mapping
+        FOR i := 1 TO g_TotalParkingSpots DO
+            IF NOT g_ParkingSpotStatus[i] THEN
+                FindNextAvailableSpot := i;
+                RETURN;
+            END_IF;
+        END_FOR
+        FindNextAvailableSpot := 0;
+    END_METHOD
+    
+    METHOD AssignSpot : UINT
+        // Assign parking spot to vehicle (Property 1 Compliance)
+        VAR
+            NewSpot : UINT;
+        END_VAR
+        
+        // Property 8 Compliance: Emergency stop interrupts assignment
+        IF i_EmergencyStop THEN
+            AssignSpot := 0;
+            RETURN;
+        END_IF;
+        
+        // Property 6 Compliance: No assignment during retrieval
+        IF i_RetrievalInProgress THEN
+            AssignSpot := 0;
+            RETURN;
+        END_IF;
+        
+        NewSpot := FindNextAvailableSpot();
+        IF NewSpot > 0 THEN
+            // Update global status
+            g_ParkingSpotStatus[NewSpot] := TRUE;
+            g_LastCarID := g_LastCarID + 1;
+            g_CarSpotMapping[NewSpot] := g_LastCarID;
+            g_AvailableSpots := g_AvailableSpots - 1;
+        END_IF;
+        
+        AssignSpot := NewSpot;
+    END_METHOD
+END_VAR
+
+// Emergency Stop Handling (Property 8 Compliance)
+IF i_EmergencyStop THEN
+    o_GateOpen := FALSE;
+    o_EntryInProgress := FALSE;
+    o_AssignedSpot := 0;
+    SpotAssignmentInProgress := FALSE;
+    EntryRequestActive := FALSE;
+    SensorDebounce(IN := FALSE);
+    RETURN;
+END_IF;
+
+// Entry Sensor Debounce
+SensorDebounce(IN := i_EntrySensor, PT := T#200MS);
+
+// Detect valid entry request
+IF SensorDebounce.Q AND NOT EntryRequestActive THEN
+    EntryRequestActive := TRUE;
+    SpotAssignmentInProgress := TRUE;
+END_IF;
+
+// Handle spot assignment
+IF SpotAssignmentInProgress THEN
+    AssignedSpotInternal := AssignSpot();
+    
+    // Property 3 Compliance: Always provide response
+    IF AssignedSpotInternal > 0 THEN
+        // Successful spot assignment
+        o_AssignedSpot := AssignedSpotInternal;
+        o_GateOpen := TRUE;
+        o_LotFull := FALSE;
+        o_EntryInProgress := TRUE;
+    ELSE
+        // No spot available (Property 2 Compliance)
+        o_AssignedSpot := 0;
+        o_GateOpen := FALSE;
+        o_LotFull := (i_AvailableSpots = 0);
+        o_EntryInProgress := TRUE;
+    END_IF;
+    
+    SpotAssignmentInProgress := FALSE;
+END_IF;
+
+// Reset when vehicle clears sensor
+IF NOT i_EntrySensor AND EntryRequestActive THEN
+    EntryRequestActive := FALSE;
+    o_GateOpen := FALSE;
+    o_EntryInProgress := FALSE;
+    // o_AssignedSpot remains until reset by main controller
+END_IF;
+
+// Update lot full status
+o_LotFull := (i_AvailableSpots = 0);
+END_FUNCTION_BLOCK

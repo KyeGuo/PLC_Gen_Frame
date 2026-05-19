@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TCPlcOpcUa">
+  <POU Type="FUNCTION_BLOCK" Name="FB_BakeryOvenControl" Id="{FB_BakeryOvenControl-1234-5678-90AB-CDEF01234567}">
+    <Declaration>
+      FUNCTION_BLOCK FB_BakeryOvenControl
+      VAR_INPUT
+        // 传感器输入
+        TemperatureSensor : REAL; // 当前烤箱温度(°C)
+        HumiditySensor : REAL; // 当前烤箱湿度(%RH)
+        
+        // 设定参数
+        OvenTemperature : REAL; // 目标温度设定(°C)
+        OvenHumidity : REAL; // 目标湿度设定(%RH)
+        BakingTime : TIME; // 总烘焙时间
+        HeatingThreshold : REAL; // 温度控制阈值(°C)
+        HumidityThreshold : REAL; // 湿度控制阈值(%RH)
+        
+        // 控制指令
+        Start : BOOL; // 启动信号(上升沿有效)
+        Stop : BOOL; // 停止信号(上升沿有效)
+        Reset : BOOL; // 复位信号(上升沿有效)
+      END_VAR
+      
+      VAR_OUTPUT
+        // 输出控制
+        HeatingElement : BOOL; // 加热元件控制(TRUE=开启)
+        CoolingElement : BOOL; // 冷却元件控制(TRUE=开启)
+        HumidityControl : BOOL; // 加湿控制(TRUE=开启)
+        DehumidifierControl : BOOL; // 除湿控制(TRUE=开启)
+        
+        // 状态指示
+        OvenStatus : BOOL; // 烤箱运行状态(TRUE=运行中)
+        BakingComplete : BOOL; // 烘焙完成标志(TRUE=已完成)
+        Error : BOOL; // 错误标志
+        ErrorCode : WORD; // 错误代码(0=无错误)
+        
+        // 状态反馈
+        ElapsedTime : TIME; // 已烘焙时间
+        RemainingTime : TIME; // 剩余烘焙时间
+        CurrentTemperature : REAL; // 当前温度反馈
+        CurrentHumidity : REAL; // 当前湿度反馈
+      END_VAR
+      
+      VAR
+        // 内部变量
+        NeedHeating : BOOL; // 需要加热标志
+        NeedCooling : BOOL; // 需要冷却标志
+        NeedHumidify : BOOL; // 需要加湿标志
+        NeedDehumidify : BOOL; // 需要除湿标志
+        
+        // 边沿检测
+        StartEdge : BOOL;
+        StopEdge : BOOL;
+        ResetEdge : BOOL;
+        
+        // 定时器
+        BakingTimer : TON; // 烘焙计时
+        
+        // 状态机
+        ovenState : (ST_IDLE, ST_PREHEAT, ST_BAKING, ST_COMPLETE, ST_ERROR);
+      END_VAR
+    </Declaration>
+    <Implementation>
+      <ST>
+        // 边沿检测
+        StartEdge := Start AND NOT StartEdge;
+        StopEdge := Stop AND NOT StopEdge;
+        ResetEdge := Reset AND NOT ResetEdge;
+        
+        // 状态反馈更新
+        CurrentTemperature := TemperatureSensor;
+        CurrentHumidity := HumiditySensor;
+        ElapsedTime := BakingTimer.ET;
+        RemainingTime := BakingTime - ElapsedTime;
+        
+        // 形式化属性7: 阈值有效性保证
+        IF HeatingThreshold <= 0.0 THEN
+          HeatingThreshold := 5.0; // 默认阈值5°C
+        END_IF;
+        IF HumidityThreshold <= 0.0 THEN
+          HumidityThreshold := 5.0; // 默认阈值5%RH
+        END_IF;
+        
+        // 形式化属性6: 时间有效性保证
+        IF BakingTime < T#0S THEN
+          BakingTime := T#0S; // 时间不能为负
+        END_IF;
+        
+        // 状态机逻辑
+        CASE ovenState OF
+          ST_IDLE: // 空闲状态
+            OvenStatus := FALSE;
+            BakingComplete := FALSE;
+            Error := FALSE;
+            ErrorCode := 0;
+            
+            // 复位输出
+            HeatingElement := FALSE;
+            CoolingElement := FALSE;
+            HumidityControl := FALSE;
+            DehumidifierControl := FALSE;
+            
+            // 启动边沿触发
+            IF StartEdge THEN
+              ovenState := ST_PREHEAT;
+              BakingTimer(IN := TRUE, PT := BakingTime);
+            END_IF;
+            
+            // 复位处理
+            IF ResetEdge THEN
+              ElapsedTime := T#0S;
+              RemainingTime := BakingTime;
+            END_IF;
+            
+          ST_PREHEAT: // 预热状态
+            OvenStatus := TRUE;
+            BakingComplete := FALSE;
+            
+            // 温度控制逻辑
+            NeedHeating := (TemperatureSensor < (OvenTemperature - HeatingThreshold));
+            NeedCooling := (TemperatureSensor > (OvenTemperature + HeatingThreshold));
+            
+            // 形式化属性1: 加热冷却互锁
+            HeatingElement := NeedHeating AND NOT NeedCooling;
+            CoolingElement := NeedCooling AND NOT NeedHeating;
+            
+            // 湿度控制逻辑
+            NeedHumidify := (HumiditySensor < (OvenHumidity - HumidityThreshold));
+            NeedDehumidify := (HumiditySensor > (OvenHumidity + HumidityThreshold));
+            
+            // 形式化属性2: 湿度控制互锁
+            HumidityControl := NeedHumidify AND NOT NeedDehumidify;
+            DehumidifierControl := NeedDehumidify AND NOT NeedHumidify;
+            
+            // 预热完成条件
+            IF (ABS(TemperatureSensor - OvenTemperature) <= HeatingThreshold) AND 
+               (ABS(HumiditySensor - OvenHumidity) <= HumidityThreshold) THEN
+              ovenState := ST_BAKING;
+            END_IF;
+            
+            // 停止或错误处理
+            IF StopEdge THEN
+              ovenState := ST_IDLE;
+              BakingTimer(IN := FALSE);
+            END_IF;
+            
+          ST_BAKING: // 烘焙状态
+            OvenStatus := TRUE;
+            BakingComplete := FALSE;
+            
+            // 形式化属性3: 低温加热逻辑
+            NeedHeating := (TemperatureSensor < (OvenTemperature - HeatingThreshold));
+            
+            // 形式化属性4: 高温冷却逻辑
+            NeedCooling := (TemperatureSensor > (OvenTemperature + HeatingThreshold));
+            
+            // 形式化属性1: 加热冷却互锁
+            HeatingElement := NeedHeating AND NOT NeedCooling;
+            CoolingElement := NeedCooling AND NOT NeedHeating;
+            
+            // 湿度控制逻辑
+            NeedHumidify := (HumiditySensor < (OvenHumidity - HumidityThreshold));
+            NeedDehumidify := (HumiditySensor > (OvenHumidity + HumidityThreshold));
+            
+            // 形式化属性2: 湿度控制互锁
+            HumidityControl := NeedHumidify AND NOT NeedDehumidify;
+            DehumidifierControl := NeedDehumidify AND NOT NeedHumidify;
+            
+            // 形式化属性8: 烘焙完成自动停机
+            IF BakingTimer.Q THEN
+              ovenState := ST_COMPLETE;
+              BakingComplete := TRUE;
+              OvenStatus := FALSE;
+              BakingTimer(IN := FALSE);
+            END_IF;
+            
+            // 停止处理
+            IF StopEdge THEN
+              ovenState := ST_IDLE;
+              BakingTimer(IN := FALSE);
+            END_IF;
+            
+          ST_COMPLETE: // 烘焙完成
+            OvenStatus := FALSE;
+            BakingComplete := TRUE;
+            
+            // 形式化属性5: 安全停机逻辑 - 关闭所有输出
+            HeatingElement := FALSE;
+            CoolingElement := FALSE;
+            HumidityControl := FALSE;
+            DehumidifierControl := FALSE;
+            
+            // 复位或重新启动
+            IF ResetEdge THEN
+              ovenState := ST_IDLE;
+            ELSIF StartEdge THEN
+              ovenState := ST_PREHEAT;
+              BakingTimer(IN := TRUE, PT := BakingTime);
+            END_IF;
+            
+          ST_ERROR: // 错误状态
+            OvenStatus := FALSE;
+            BakingComplete := FALSE;
+            Error := TRUE;
+            
+            // 形式化属性5: 安全停机逻辑 - 关闭所有输出
+            HeatingElement := FALSE;
+            CoolingElement := FALSE;
+            HumidityControl := FALSE;
+            DehumidifierControl := FALSE;
+            
+            // 复位处理
+            IF ResetEdge THEN
+              ovenState := ST_IDLE;
+              ErrorCode := 0;
+            END_IF;
+        END_CASE;
+        
+        // 错误检测逻辑
+        IF OvenStatus THEN
+          // 传感器错误检测
+          IF (TemperatureSensor < -40.0) OR (TemperatureSensor > 300.0) THEN
+            ErrorCode := 16#0001; // 温度传感器错误
+            ovenState := ST_ERROR;
+          END_IF;
+          
+          IF (HumiditySensor < 0.0) OR (HumiditySensor > 100.0) THEN
+            ErrorCode := 16#0002; // 湿度传感器错误
+            ovenState := ST_ERROR;
+          END_IF;
+        END_IF;
+        
+      </ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

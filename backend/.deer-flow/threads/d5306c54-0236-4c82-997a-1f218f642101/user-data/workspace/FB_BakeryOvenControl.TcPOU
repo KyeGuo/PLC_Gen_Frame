@@ -1,0 +1,186 @@
+// Bread Oven Control Function Block
+// Implements temperature control, humidity control, and baking timer
+// TwinCAT 3 Structured Text implementation
+
+FUNCTION_BLOCK FB_BakeryOvenControl
+VAR_INPUT
+    // Oven Configuration
+    OvenTemperature : REAL;           // Target oven temperature (°C)
+    HeatingThreshold : REAL;          // Temperature threshold for heating/cooling (°C)
+    
+    // Humidity Configuration
+    OvenHumidity : REAL;              // Target oven humidity (%)
+    HumidityThreshold : REAL;         // Humidity threshold for humidity/dehumidity control (%)
+    
+    // Baking Timer
+    BakingTimeSet : TIME;             // Set baking time (T#0S = infinite)
+    
+    // Sensors
+    TemperatureSensor : REAL;         // Current oven temperature (°C)
+    HumiditySensor : REAL;             // Current oven humidity (%)
+    
+    // Control Inputs
+    OvenStart : BOOL;                 // Start oven (rising edge triggers)
+    OvenStop : BOOL;                  // Stop oven (rising edge triggers)
+END_VAR
+
+VAR_OUTPUT
+    // Oven Status
+    OvenStatus : BOOL;                // Oven running status
+    BakingTime : TIME;                // Remaining baking time
+    
+    // Control Outputs
+    HeatingElement : BOOL;            // Heating element activation
+    CoolingElement : BOOL;            // Cooling element activation
+    HumidityControl : BOOL;           // Humidifier activation
+    DehumidityControl : BOOL;         // Dehumidifier activation
+    
+    // Alarms
+    TemperatureAlarm : BOOL;          // Temperature out of range alarm
+    HumidityAlarm : BOOL;             // Humidity out of range alarm
+END_VAR
+
+VAR
+    // Internal State Variables
+    OvenStartEdge : BOOL;             // Rising edge detection for OvenStart
+    OvenStopEdge : BOOL;              // Rising edge detection for OvenStop
+    
+    // Timer Variables
+    BakingTimer : TON;                // Baking time timer
+    
+    // Control Logic Variables
+    NeedHeating : BOOL;               // Logic flag for heating need
+    NeedCooling : BOOL;               // Logic flag for cooling need
+    NeedHumidify : BOOL;              // Logic flag for humidification need
+    NeedDehumidify : BOOL;            // Logic flag for dehumidification need
+END_VAR
+
+METHOD Initialize
+    // Initialize all outputs and internal variables
+    OvenStatus := FALSE;
+    BakingTime := BakingTimeSet;
+    HeatingElement := FALSE;
+    CoolingElement := FALSE;
+    HumidityControl := FALSE;
+    DehumidityControl := FALSE;
+    TemperatureAlarm := FALSE;
+    HumidityAlarm := FALSE;
+    
+    OvenStartEdge := FALSE;
+    OvenStopEdge := FALSE;
+    BakingTimer(IN := FALSE, PT := T#0S);
+END_METHOD
+
+METHOD UpdateControlLogic
+    // Calculate temperature control needs
+    NeedHeating := (TemperatureSensor < (OvenTemperature - HeatingThreshold)) AND OvenStatus;
+    NeedCooling := (TemperatureSensor > (OvenTemperature + HeatingThreshold)) AND OvenStatus;
+    
+    // Calculate humidity control needs
+    NeedHumidify := (HumiditySensor < (OvenHumidity - HumidityThreshold)) AND OvenStatus;
+    NeedDehumidify := (HumiditySensor > (OvenHumidity + HumidityThreshold)) AND OvenStatus;
+    
+    // Update alarms
+    TemperatureAlarm := (ABS(TemperatureSensor - OvenTemperature) > 2 * HeatingThreshold) AND OvenStatus;
+    HumidityAlarm := (ABS(HumiditySensor - OvenHumidity) > 2 * HumidityThreshold) AND OvenStatus;
+    
+    // Implement temperature control with mutual exclusivity
+    // Property 1: Heating and cooling cannot be active simultaneously
+    // Property 3: Heating must be active when temperature is too low
+    // Property 4: Cooling must be active when temperature is too high
+    HeatingElement := NeedHeating AND NOT NeedCooling;
+    CoolingElement := NeedCooling AND NOT NeedHeating;
+    
+    // Implement humidity control with mutual exclusivity
+    // Property 2: Humidifier and dehumidifier cannot be active simultaneously
+    HumidityControl := NeedHumidify AND NOT NeedDehumidify;
+    DehumidityControl := NeedDehumidify AND NOT NeedHumidify;
+    
+    // Property 5: All controls must be off when oven is off
+    IF NOT OvenStatus THEN
+        HeatingElement := FALSE;
+        CoolingElement := FALSE;
+        HumidityControl := FALSE;
+        DehumidityControl := FALSE;
+    END_IF;
+END_METHOD
+
+METHOD UpdateTimer
+    // Update baking timer
+    IF OvenStatus THEN
+        // Start timer if not already running
+        IF NOT BakingTimer.Q THEN
+            BakingTimer(IN := TRUE, PT := BakingTimeSet);
+        END_IF;
+        
+        // Update remaining baking time
+        IF BakingTimeSet > T#0S THEN
+            BakingTime := BakingTimeSet - BakingTimer.ET;
+            // Ensure baking time doesn't go negative (Property 6)
+            IF BakingTime < T#0S THEN
+                BakingTime := T#0S;
+            END_IF;
+        ELSE
+            // Infinite baking time
+            BakingTime := T#24H; // Represent infinite as 24 hours
+        END_IF;
+        
+        // Property 8: When baking completes, oven must turn off
+        IF BakingTime = T#0S THEN
+            OvenStatus := FALSE;
+            BakingTimer(IN := FALSE);
+        END_IF;
+    ELSE
+        // Reset timer when oven is stopped
+        BakingTimer(IN := FALSE);
+        BakingTime := BakingTimeSet;
+    END_IF;
+END_METHOD
+
+METHOD CheckInvariants
+    // Property 7: Temperature thresholds must be positive
+    IF HeatingThreshold <= 0.0 THEN
+        // Invalid threshold, set to default value
+        HeatingThreshold := 5.0;
+    END_IF;
+    
+    IF HumidityThreshold <= 0.0 THEN
+        // Invalid threshold, set to default value
+        HumidityThreshold := 5.0;
+    END_IF;
+END_METHOD
+
+// Main program execution
+METHOD Main
+    // Edge detection for start/stop buttons
+    OvenStartEdge := OvenStart AND NOT OvenStartEdge;
+    OvenStopEdge := OvenStop AND NOT OvenStopEdge;
+    
+    // Handle oven start
+    IF OvenStartEdge THEN
+        OvenStatus := TRUE;
+    END_IF;
+    
+    // Handle oven stop
+    IF OvenStopEdge THEN
+        OvenStatus := FALSE;
+    END_IF;
+    
+    // Check and fix invariants
+    CheckInvariants();
+    
+    // Update control logic
+    UpdateControlLogic();
+    
+    // Update timer
+    UpdateTimer();
+END_METHOD
+
+// Initialize on first scan
+INITIALIZATION
+    Initialize();
+END_INITIALIZATION
+
+// Main execution
+Main();
+END_FUNCTION_BLOCK

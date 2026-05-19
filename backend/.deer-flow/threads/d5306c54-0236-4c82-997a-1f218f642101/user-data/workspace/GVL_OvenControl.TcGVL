@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject xmlns="http://www.beckhoff.com/TCPlcOpcUa">
+  <GVL Name="GVL_OvenControl" Id="{GVL_OvenControl-1234-5678-90AB-CDEF01234567}">
+    <Declaration>
+      GLOBAL_VARIABLE_LIST
+        // 系统常量定义
+        CONST
+          // 温度范围限制
+          MIN_TEMPERATURE: REAL := -40.0; // 最低允许温度(°C)
+          MAX_TEMPERATURE: REAL := 300.0; // 最高允许温度(°C)
+          
+          // 湿度范围限制
+          MIN_HUMIDITY: REAL := 0.0;      // 最低允许湿度(%RH)
+          MAX_HUMIDITY: REAL := 100.0;    // 最高允许湿度(%RH)
+          
+          // 错误代码定义
+          ERR_TEMP_SENSOR: WORD := 16#0001; // 温度传感器错误
+          ERR_HUMIDITY_SENSOR: WORD := 16#0002; // 湿度传感器错误
+          ERR_OVERHEAT: WORD := 16#0003; // 烤箱过热
+          ERR_SYSTEM: WORD := 16#FFFF;    // 系统错误
+          
+          // 默认参数
+          DEFAULT_TEMPERATURE: REAL := 180.0; // 默认温度(°C)
+          DEFAULT_HUMIDITY: REAL := 60.0;    // 默认湿度(%RH)
+          DEFAULT_BAKING_TIME: TIME := T#30M; // 默认烘焙时间
+          DEFAULT_TEMP_THRESHOLD: REAL := 5.0; // 默认温度阈值(°C)
+          DEFAULT_HUMID_THRESHOLD: REAL := 5.0; // 默认湿度阈值(%RH)
+        END_CONST
+        
+        // 系统全局变量
+        VAR_GLOBAL
+          // 烤箱控制实例
+          OvenController: FB_BakeryOvenControl;
+          
+          // 系统配置
+          SystemConfig: UDT_OvenControl.Configuration;
+          
+          // 运行数据记录
+          OperationLog: STRUCT
+            TotalBakes: DINT := 0; // 总烘焙次数
+            TotalBakingTime: TIME := T#0S; // 总烘焙时间
+            LastBakeTime: TIME; // 上次烘焙时间
+            LastBakeTemperature: REAL; // 上次烘焙温度
+          END_STRUCT;
+          
+          // HMI 接口变量
+          HMI: STRUCT
+            // HMI输入
+            SetTemperature: REAL := DEFAULT_TEMPERATURE;
+            SetHumidity: REAL := DEFAULT_HUMIDITY;
+            SetBakingTime: TIME := DEFAULT_BAKING_TIME;
+            
+            // HMI输出
+            CurrentTemperature: REAL;
+            CurrentHumidity: REAL;
+            ElapsedTime: TIME;
+            RemainingTime: TIME;
+            OvenStatus: BOOL;
+            BakingComplete: BOOL;
+            ErrorCode: WORD;
+          END_STRUCT;
+        END_VAR
+        
+        // 全局常量
+        VAR_GLOBAL CONSTANT
+          SYSTEM_NAME: STRING := 'Bakery Oven Control System'; // 系统名称
+          SYSTEM_VERSION: STRING := 'V1.0.0'; // 系统版本
+          MANUFACTURER: STRING := 'Bakery Automation Systems'; // 制造商
+        END_VAR
+      END_GLOBAL_VARIABLE_LIST
+    </Declaration>
+  </GVL>
+</TcPlcObject>

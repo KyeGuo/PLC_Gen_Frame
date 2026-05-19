@@ -1,0 +1,44 @@
+// MoveCarToExitGate Function
+// Multi-Level Parking Lot Automation System
+// Property 5 Compliance: Always returns completion status
+// Property 6 Compliance: Mutual exclusion - only one movement at a time
+
+FUNCTION FUN_MoveCarToExitGate : BOOL
+VAR_INPUT
+    i_SpotNumber : UINT;              // Target parking spot number to move from
+    i_EmergencyStop : BOOL;           // Emergency stop signal (Safety-Critical)
+END_VAR
+VAR
+    MoveTimer : TON;                  // Movement simulation timer
+    MovementActive : BOOL;            // Internal movement active flag
+    EmergencyStopDetected : BOOL;     // Emergency stop detection flag
+END_VAR
+
+// Emergency stop handling (Property 8 Compliance)
+// Emergency stop immediately aborts movement and returns failure
+IF i_EmergencyStop THEN
+    MovementActive := FALSE;
+    MoveTimer(IN := FALSE);
+    FUN_MoveCarToExitGate := FALSE;
+    RETURN;
+END_IF;
+
+// Initialize movement if not already active
+IF NOT MovementActive THEN
+    MovementActive := TRUE;
+    MoveTimer(IN := TRUE, PT := T#5S); // 5-second movement simulation
+END_IF;
+
+// Monitor movement timer
+MoveTimer(IN := MovementActive);
+
+IF MoveTimer.Q THEN
+    // Movement completed successfully
+    FUN_MoveCarToExitGate := TRUE;
+    MovementActive := FALSE;
+    MoveTimer(IN := FALSE);
+ELSE
+    // Movement in progress or failed
+    FUN_MoveCarToExitGate := FALSE;
+END_IF;
+END_FUNCTION

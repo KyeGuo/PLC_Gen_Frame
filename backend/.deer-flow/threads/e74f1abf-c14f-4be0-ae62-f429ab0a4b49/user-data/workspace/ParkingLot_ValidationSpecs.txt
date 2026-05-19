@@ -1,0 +1,80 @@
+# Formal Property Validation Specifications
+# Parking Lot Automation System
+
+## Property 1: Safety - No Double Parking
+- **Description**: A parking spot can never be assigned to more than one vehicle simultaneously
+- **Formal Specification**: 
+  ```
+  FORALL t: TIME, s: UINT[1..100], c1: UINT, c2: UINT
+  (ParkingSpotAssigned(s, c1, t) AND c1 != c2) => NOT ParkingSpotAssigned(s, c2, t)
+  ```
+- **Verification Method**: Model checking of state transitions during assignment operations
+
+## Property 2: Safety - No Parking in Full Lot
+- **Description**: No vehicle can enter when all 100 parking spots are occupied
+- **Formal Specification**:
+  ```
+  FORALL t: TIME
+  (CountOccupiedSpots(t) = 100) => NOT EntryGateOpen(t)
+  ```
+- **Verification Method**: Reachability analysis of full lot state
+
+## Property 3: Liveness - Entry Request Always Answered
+- **Description**: Every valid entry request will eventually receive a response (either spot assignment or full lot notification)
+- **Formal Specification**:
+  ```
+  FORALL t: TIME
+  EntryVehicleDetect(t) => EXISTS t': TIME, t' > t
+  (AssignedSpot(t') > 0 OR (AssignedSpot(t') = 0 AND CountOccupiedSpots(t') = 100))
+  ```
+- **Verification Method**: Liveness checking with fairness constraints
+
+## Property 4: Safety - Pickup Only for Parked Cars
+- **Description**: A pickup request can only be initiated for a vehicle that is currently parked
+- **Formal Specification**:
+  ```
+  FORALL t: TIME, c: UINT
+  PickupRequest(c, t) => EXISTS s: UINT[1..100]
+  ParkingSpotAssigned(s, c, t)
+  ```
+- **Verification Method**: Pre-condition checking in pickup operation
+
+## Property 5: Liveness - Pickup Operation Completes
+- **Description**: Every initiated pickup operation will eventually complete (success or failure)
+- **Formal Specification**:
+  ```
+  FORALL t: TIME
+  PickupInProgress(t) => EXISTS t': TIME, t' > t
+  NOT PickupInProgress(t')
+  ```
+- **Verification Method**: Termination analysis of pickup state machine
+
+## Property 6: Safety - No Vehicle Movement Conflict
+- **Description**: Only one vehicle can be in the movement state at any time
+- **Formal Specification**:
+  ```
+  FORALL t: TIME, s1: UINT, s2: UINT, c1: UINT, c2: UINT
+  (s1 != s2 AND CarMovingFromSpot(s1, c1, t)) => NOT CarMovingFromSpot(s2, c2, t)
+  ```
+- **Verification Method**: Mutual exclusion checking of movement operations
+
+## Property 7: Safety - Exit Only for Released Spots
+- **Description**: Exit gate can only open for a vehicle that has been properly released from its parking spot
+- **Formal Specification**:
+  ```
+  FORALL t: TIME, c: UINT
+  ExitGateOpen(t) => EXISTS s: UINT[1..100]
+  (ParkingSpotAssigned(s, c, t-Δt) AND NOT ParkingSpotAssigned(s, c, t))
+  ```
+- **Verification Method**: Post-condition checking of release operations
+
+## Property 8: Safety-Critical - Emergency Stop Interrupts All Operations
+- **Description**: Emergency stop signal immediately interrupts all ongoing operations and returns system to safe state
+- **Formal Specification**:
+  ```
+  FORALL t: TIME
+  EmergencyStopActivated(t) => 
+  (NOT EntryGateOpen(t) AND NOT ExitGateOpen(t) AND NOT CarMoving(t) 
+   AND FORALL s: UINT[1..100] NOT ParkingSpotChanging(s, t))
+  ```
+- **Verification Method**: Priority analysis of emergency stop signal
