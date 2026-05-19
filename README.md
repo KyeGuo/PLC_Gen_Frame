@@ -59,6 +59,7 @@
 - Python 3.12+
 - Node.js 18+
 - Git
+- uv (Python 包管理器，用于 monorepo 管理)
 
 ### 安装步骤
 
@@ -68,33 +69,39 @@ git clone https://github.com/KyeGuo/PLC_Gen_Frame.git
 cd PLC_Gen_Frame
 ```
 
-2. **创建并激活虚拟环境**
+2. **安装 uv (如果尚未安装)**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# 或使用 pip: pip install uv
+```
+
+3. **创建并激活虚拟环境**
 ```bash
 cd backend
-python -m venv .venv
+uv venv
 source .venv/bin/activate  # Linux/Mac
 # 或在 Windows 上使用: .venv\Scripts\activate
 ```
 
-3. **安装后端依赖**
+4. **安装后端依赖**
 ```bash
-pip install -e .
+uv pip install -e .
 ```
 
-4. **安装 Agents4PLC 基准测试数据集**
+5. **安装 Agents4PLC 基准测试数据集**
 
 本框架使用 Agents4PLC_release 作为基准测试数据集。需要将其克隆到项目同级目录：
 
 ```bash
 cd ..
 git clone https://github.com/Luoji-zju/Agents4PLC_release.git
-cd deer-flow/backend
+cd PLC_Gen_Frame/backend
 ```
 
 数据集目录结构要求：
 ```
 Project/
-├── deer-flow/           # 本框架
+├── PLC_Gen_Frame/           # 本框架
 └── Agents4PLC_release/  # 基准测试数据集（必须在此位置）
     ├── benchmark_v2/    # 包含 medium.jsonl, hard.jsonl, high-fidelity.jsonl
     ├── api/             # API 接口定义
@@ -102,23 +109,23 @@ Project/
     └── ...
 ```
 
-5. **安装 TwinCAT Validator MCP 工具**
+6. **安装 TwinCAT Validator MCP 工具**
 ```bash
 # 假设 twincat-validator-mcp 在同级目录
 cd ..
 git clone https://github.com/your-org/twincat-validator-mcp.git
 cd twincat-validator-mcp
-pip install -e .
-cd ../deer-flow/backend
+uv pip install -e .
+cd ../PLC_Gen_Frame/backend
 ```
 
-6. **安装前端依赖**
+7. **安装前端依赖**
 ```bash
 cd ../../frontend
 npm install
 ```
 
-6. **配置环境**
+8. **配置环境**
 
 首先创建 PLC 工作空间目录：
 ```bash
@@ -319,14 +326,14 @@ python server.py
 ## 项目结构
 
 ```
-deer-flow/
+PLC_Gen_Frame/
 ├── start.sh                  # 启动脚本
 ├── stop.sh                   # 停止脚本
 ├── README.md                 # 项目说明
 ├── config.yaml               # 配置文件
 ├── extensions_config.json    # MCP 扩展配置
 ├── backend/                  # 后端服务
-│   ├── .deer-flow/agents/    # 智能体定义
+│   ├── .PLC_Gen_Frame/agents/    # 智能体定义
 │   ├── app/                  # FastAPI 应用
 │   └── packages/             # 核心包
 ├── frontend/                 # 前端应用
