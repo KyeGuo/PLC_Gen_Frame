@@ -57,7 +57,7 @@
 ### 前置要求
 
 - Python 3.12+
-- Node.js 18+
+- Node.js 20.9.0+
 - Git
 - uv (Python 包管理器，用于 monorepo 管理)
 
@@ -97,7 +97,7 @@ uv pip install -e .
 ```bash
 cd ..
 git clone https://github.com/Luoji-zju/Agents4PLC_release.git
-cd PLC_Gen_Frame/backend
+cd backend
 ```
 
 数据集目录结构：
