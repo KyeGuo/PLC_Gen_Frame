@@ -85,7 +85,7 @@ cd "$SCRIPT_DIR/frontend"
 
 # 在后台启动前端
 echo "前端服务启动中..."
-npm run dev > "$SCRIPT_DIR/frontend.log" 2>&1 &
+npm run dev -- --host 0.0.0.0 > "$SCRIPT_DIR/frontend.log" 2>&1 &
 FRONTEND_PID=$!
 echo "前端服务 PID: $FRONTEND_PID"
 echo "前端日志: $SCRIPT_DIR/frontend.log"
