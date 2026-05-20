@@ -1,0 +1,8 @@
+name: plc-optimizer
+description: PLC代码优化专家 - 负责优化和修复PLC代码
+model: Doubao-Speed-1.8
+tool_groups:
+  - file:read
+  - file:write
+  - mcp
+skills: null

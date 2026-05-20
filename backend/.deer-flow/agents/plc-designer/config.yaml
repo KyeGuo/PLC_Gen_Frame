@@ -1,0 +1,7 @@
+name: plc-designer
+description: PLC方案设计专家 - 负责设计PLC代码架构和实现方案
+model: Doubao-Speed-1.8
+tool_groups:
+  - file:read
+  - file:write
+skills: null

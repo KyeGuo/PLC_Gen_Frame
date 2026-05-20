@@ -1,0 +1,8 @@
+name: plc-validator
+description: PLC代码验证专家 - 负责使用TwinCAT MCP工具验证代码正确性
+model: Doubao-Speed-1.8
+tool_groups:
+  - file:read
+  - file:write
+  - mcp
+skills: null

@@ -1,0 +1,8 @@
+name: plc-coder
+description: PLC代码编写专家 - 负责编写符合TwinCAT规范的PLC代码
+model: Doubao-Speed-1.8
+tool_groups:
+  - file:read
+  - file:write
+  - mcp
+skills: null

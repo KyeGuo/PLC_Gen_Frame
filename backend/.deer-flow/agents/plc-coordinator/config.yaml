@@ -1,0 +1,8 @@
+name: plc-coordinator
+description: PLC代码生成总协调器 - 负责管理整个代码生成、验证、优化流程
+model: doubao-seed-1.8
+tool_groups:
+  - subagent
+  - file:read
+  - file:write
+skills: null
