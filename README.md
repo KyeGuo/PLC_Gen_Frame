@@ -88,9 +88,11 @@ source .venv/bin/activate  # Linux/Mac
 uv pip install -e .
 ```
 
-5. **安装 Agents4PLC 基准测试数据集**
+5. **安装 Agents4PLC 基准测试数据集**（可选）
 
-本框架使用 Agents4PLC_release 作为基准测试数据集。需要将其克隆到项目同级目录：
+本框架已内置 Agents4PLC_release 基准测试数据集，位于 `Agents4PLC_release/` 目录下。
+
+如果需要更新数据集或使用最新版本，可以单独克隆：
 
 ```bash
 cd ..
@@ -98,15 +100,17 @@ git clone https://github.com/Luoji-zju/Agents4PLC_release.git
 cd PLC_Gen_Frame/backend
 ```
 
-数据集目录结构要求：
+数据集目录结构：
 ```
-Project/
-├── PLC_Gen_Frame/           # 本框架
-└── Agents4PLC_release/  # 基准测试数据集（必须在此位置）
-    ├── benchmark_v2/    # 包含 medium.jsonl, hard.jsonl, high-fidelity.jsonl
-    ├── api/             # API 接口定义
-    ├── server.py        # 基准测试服务
-    └── ...
+PLC_Gen_Frame/
+├── Agents4PLC_release/  # 基准测试数据集（已内置）
+│   ├── benchmark_v2/    # 包含 medium.jsonl, hard.jsonl, high-fidelity.jsonl
+│   ├── api/             # API 接口定义
+│   ├── server.py        # 基准测试服务
+│   └── ...
+├── backend/             # 后端服务
+├── frontend/            # 前端应用
+└── ...
 ```
 
 6. **安装 TwinCAT Validator MCP 工具**
