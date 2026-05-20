@@ -112,8 +112,8 @@ Project/
 6. **安装 TwinCAT Validator MCP 工具**
 ```bash
 # 假设 twincat-validator-mcp 在同级目录
-cd ..
-git clone https://github.com/your-org/twincat-validator-mcp.git
+cd ../..
+git clone https://github.com/agenticcontrolio/twincat-validator-mcp.git
 cd twincat-validator-mcp
 uv pip install -e .
 cd ../PLC_Gen_Frame/backend
@@ -121,7 +121,7 @@ cd ../PLC_Gen_Frame/backend
 
 7. **安装前端依赖**
 ```bash
-cd ../../frontend
+cd ../frontend
 npm install
 ```
 
