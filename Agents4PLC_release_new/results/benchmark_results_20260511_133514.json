@@ -1,0 +1,638 @@
+{
+  "benchmark_files": [
+    "medium.jsonl"
+  ],
+  "timestamp": "20260511_133514",
+  "results": [
+    {
+      "task_id": "v2-M-1",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.007369279861450195
+    },
+    {
+      "task_id": "v2-M-2",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.008436918258666992
+    },
+    {
+      "task_id": "v2-M-3",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.006470441818237305
+    },
+    {
+      "task_id": "v2-M-4",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005093812942504883
+    },
+    {
+      "task_id": "v2-M-5",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005339860916137695
+    },
+    {
+      "task_id": "v2-M-6",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005269765853881836
+    },
+    {
+      "task_id": "v2-M-7",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005630970001220703
+    },
+    {
+      "task_id": "v2-M-8",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0051190853118896484
+    },
+    {
+      "task_id": "v2-M-9",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004972696304321289
+    },
+    {
+      "task_id": "v2-M-10",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005190372467041016
+    },
+    {
+      "task_id": "v2-M-11",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005097627639770508
+    },
+    {
+      "task_id": "v2-M-12",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005715608596801758
+    },
+    {
+      "task_id": "v2-M-13",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004982948303222656
+    },
+    {
+      "task_id": "v2-M-14",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.006315469741821289
+    },
+    {
+      "task_id": "v2-M-15",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.006703615188598633
+    },
+    {
+      "task_id": "v2-M-16",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004889488220214844
+    },
+    {
+      "task_id": "v2-M-17",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0052301883697509766
+    },
+    {
+      "task_id": "v2-M-18",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005309581756591797
+    },
+    {
+      "task_id": "v2-M-19",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005860328674316406
+    },
+    {
+      "task_id": "v2-M-20",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005137920379638672
+    },
+    {
+      "task_id": "v2-M-21",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005304098129272461
+    },
+    {
+      "task_id": "v2-M-22",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005003213882446289
+    },
+    {
+      "task_id": "v2-M-23",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004930734634399414
+    },
+    {
+      "task_id": "v2-M-24",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0043811798095703125
+    },
+    {
+      "task_id": "v2-M-25",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004645824432373047
+    },
+    {
+      "task_id": "v2-M-26",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004723548889160156
+    },
+    {
+      "task_id": "v2-M-27",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005502462387084961
+    },
+    {
+      "task_id": "v2-M-28",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005725860595703125
+    },
+    {
+      "task_id": "v2-M-29",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004532575607299805
+    },
+    {
+      "task_id": "v2-M-30",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004802703857421875
+    },
+    {
+      "task_id": "v2-M-31",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005251169204711914
+    },
+    {
+      "task_id": "v2-M-32",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004904747009277344
+    },
+    {
+      "task_id": "v2-M-33",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0048716068267822266
+    },
+    {
+      "task_id": "v2-M-34",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005274772644042969
+    },
+    {
+      "task_id": "v2-M-35",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005812644958496094
+    },
+    {
+      "task_id": "v2-M-36",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004912137985229492
+    },
+    {
+      "task_id": "v2-M-37",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004988431930541992
+    },
+    {
+      "task_id": "v2-M-38",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005798816680908203
+    },
+    {
+      "task_id": "v2-M-39",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005776405334472656
+    },
+    {
+      "task_id": "v2-M-40",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0066089630126953125
+    },
+    {
+      "task_id": "v2-M-41",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005870819091796875
+    },
+    {
+      "task_id": "v2-M-42",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005282163619995117
+    },
+    {
+      "task_id": "v2-M-43",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0054781436920166016
+    },
+    {
+      "task_id": "v2-M-44",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.00510406494140625
+    },
+    {
+      "task_id": "v2-M-45",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005553483963012695
+    },
+    {
+      "task_id": "v2-M-46",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005223989486694336
+    },
+    {
+      "task_id": "v2-M-47",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004182100296020508
+    },
+    {
+      "task_id": "v2-M-48",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0055429935455322266
+    },
+    {
+      "task_id": "v2-M-49",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005445957183837891
+    },
+    {
+      "task_id": "v2-M-50",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004795074462890625
+    },
+    {
+      "task_id": "v2-M-51",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005112171173095703
+    },
+    {
+      "task_id": "v2-M-52",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005465269088745117
+    },
+    {
+      "task_id": "v2-M-53",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005175590515136719
+    },
+    {
+      "task_id": "v2-M-54",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0064089298248291016
+    },
+    {
+      "task_id": "v2-M-55",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0065155029296875
+    },
+    {
+      "task_id": "v2-M-56",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.006802558898925781
+    },
+    {
+      "task_id": "v2-M-57",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005661487579345703
+    },
+    {
+      "task_id": "v2-M-58",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.006196737289428711
+    },
+    {
+      "task_id": "v2-M-59",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005232334136962891
+    },
+    {
+      "task_id": "v2-M-60",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.006735086441040039
+    },
+    {
+      "task_id": "v2-M-61",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.006136417388916016
+    },
+    {
+      "task_id": "v2-M-62",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005968809127807617
+    },
+    {
+      "task_id": "v2-M-63",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0066220760345458984
+    },
+    {
+      "task_id": "v2-M-64",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.006476163864135742
+    },
+    {
+      "task_id": "v2-M-65",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004473447799682617
+    },
+    {
+      "task_id": "v2-M-66",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.00487828254699707
+    },
+    {
+      "task_id": "v2-M-67",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.005398988723754883
+    },
+    {
+      "task_id": "v2-M-68",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004857301712036133
+    },
+    {
+      "task_id": "v2-M-69",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0047338008880615234
+    },
+    {
+      "task_id": "v2-M-70",
+      "success": false,
+      "st_file_path": "results/task_1778477714/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.0050411224365234375
+    }
+  ]
+}

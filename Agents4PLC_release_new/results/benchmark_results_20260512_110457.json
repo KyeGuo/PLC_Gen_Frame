@@ -1,0 +1,17 @@
+{
+  "benchmark_files": [
+    "medium.jsonl"
+  ],
+  "timestamp": "20260512_110457",
+  "results": [
+    {
+      "task_id": "v2-M-1",
+      "success": false,
+      "st_file_path": null,
+      "compilation_success": null,
+      "verification_results": null,
+      "error_message": "422 Client Error: Unprocessable Entity for url: http://localhost:8001/api/runs/stream",
+      "execution_time": 0.009009838104248047
+    }
+  ]
+}

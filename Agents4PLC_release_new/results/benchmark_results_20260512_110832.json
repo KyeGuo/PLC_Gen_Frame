@@ -1,0 +1,17 @@
+{
+  "benchmark_files": [
+    "medium.jsonl"
+  ],
+  "timestamp": "20260512_110832",
+  "results": [
+    {
+      "task_id": "v2-M-1",
+      "success": false,
+      "st_file_path": "results/task_34d49da7/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 43.57784605026245
+    }
+  ]
+}

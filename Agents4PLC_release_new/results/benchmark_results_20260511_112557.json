@@ -1,0 +1,26 @@
+{
+  "benchmark_files": [
+    "medium.jsonl"
+  ],
+  "timestamp": "20260511_112557",
+  "results": [
+    {
+      "task_id": "v2-M-42",
+      "success": false,
+      "st_file_path": "results/task_1778469957/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.47938108444213867
+    },
+    {
+      "task_id": "v2-M-43",
+      "success": false,
+      "st_file_path": "results/task_1778469957/output.ST",
+      "compilation_success": false,
+      "verification_results": "Validation error: list index out of range",
+      "error_message": null,
+      "execution_time": 0.004738569259643555
+    }
+  ]
+}
